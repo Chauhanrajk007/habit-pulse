@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#7c3aed" />
+  <meta name="description" content="HabitPulse — Track multiple customizable goals with flexible units, analytics dashboards, and streak tracking." />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="HabitPulse" />
+  <title>HabitPulse — Goal Tracker</title>
+  <link rel="manifest" href="./manifest.json" />
+  <link rel="icon" href="./icons/icon-192.png" />
+  <link rel="apple-touch-icon" href="./icons/icon-192.png" />
+
+  <!-- CSS -->
+  <link rel="stylesheet" href="./css/design-system.css" />
+  <link rel="stylesheet" href="./css/components.css" />
+  <link rel="stylesheet" href="./css/animations.css" />
+  <link rel="stylesheet" href="./css/pages.css" />
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════════════════ -->
+<!--  APP SHELL                                                  -->
+<!-- ══════════════════════════════════════════════════════════ -->
+<div id="app">
+
+  <!-- ── Header ────────────────────────────────────────────── -->
+  <header class="app-header">
+    <div class="app-logo">
+      <div class="app-logo-mark">🎯</div>
+      <span class="app-logo-name">HabitPulse</span>
+    </div>
+    <div class="header-right">
+      <button class="btn-settings" id="btn-settings" aria-label="Settings">⚙️</button>
+    </div>
+  </header>
+
+  <!-- ── Install Banner (hidden by default) ─────────────────── -->
+  <div id="install-banner" style="display:none;align-items:center;gap:12px;padding:10px 16px;background:rgba(124,58,237,0.1);border-bottom:1px solid rgba(124,58,237,0.2);font-size:0.85rem;color:#c4b5fd;">
+    <span>📲 Install HabitPulse as an app</span>
+    <button id="install-btn" style="margin-left:auto;padding:6px 14px;border-radius:8px;background:#7c3aed;color:#fff;font-size:0.8rem;font-weight:600;">Install</button>
+  </div>
+
+  <!-- ── Tab Panels ─────────────────────────────────────────── -->
+  <main class="tab-panels">
+
+    <!-- ── PAGE: Active Goals ────────────────────────────────── -->
+    <section id="page-active" class="tab-panel active">
+      <!-- Summary Strip -->
+      <!-- Daily Focus: sticky non-dismissable notification banner -->
+      <div id="daily-widget" class="daily-banner"></div>
+
+      <!-- Goal List -->
+      <div class="section-header">
+        <h1 class="section-title">Active Goals</h1>
+        <span class="section-count" id="active-count-badge">0</span>
+      </div>
+      <div class="goal-list" id="active-goal-list"></div>
+    </section>
+
+    <!-- ── PAGE: Completed Goals ─────────────────────────────── -->
+    <section id="page-completed" class="tab-panel">
+      <div class="completed-banner" id="completed-banner" style="display:none">
+        <div class="completed-banner-icon">🏆</div>
+        <div class="completed-banner-text">
+          <h3>Goals Achieved!</h3>
+          <p id="completed-count-text">0 goals completed</p>
+        </div>
+      </div>
+      <div class="section-header">
+        <h2 class="section-title">Completed</h2>
+      </div>
+      <div class="goal-list" id="completed-goal-list"></div>
+    </section>
+
+    <!-- ── PAGE: Analytics ───────────────────────────────────── -->
+    <section id="page-analytics" class="tab-panel">
+
+      <!-- Overall Hero -->
+      <div class="analytics-hero">
+        <div class="analytics-hero-pct" id="analytics-pct">0%</div>
+        <div class="analytics-hero-label">Overall Completion</div>
+        <div class="analytics-progress-bar">
+          <div class="analytics-progress-fill" id="analytics-progress-fill" style="width:0%"></div>
+        </div>
+      </div>
+
+      <!-- Global Stats Grid -->
+      <div class="stat-grid" style="margin-bottom:16px">
+        <div class="stat-card">
+          <div class="stat-icon">🎯</div>
+          <div class="stat-value" id="stat-total-goals">0</div>
+          <div class="stat-label">Total Goals</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">⚡</div>
+          <div class="stat-value" id="stat-active">0</div>
+          <div class="stat-label">Active</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">✅</div>
+          <div class="stat-value" id="stat-completed">0</div>
+          <div class="stat-label">Completed</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">🔥</div>
+          <div class="stat-value" id="stat-best-streak">0d</div>
+          <div class="stat-label">Best Streak</div>
+        </div>
+      </div>
+
+      <!-- Global Daily Chart -->
+      <div class="chart-wrap">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+          <div>
+            <div class="chart-title" style="margin-bottom:2px">📈 Daily Target Completion</div>
+            <div style="font-size:0.72rem;color:var(--text-muted)">Avg % of daily targets hit across all goals</div>
+          </div>
+          <div class="range-pill-row" id="global-range-row">
+            <button class="range-pill" data-range="7"  data-ctx="global">7D</button>
+            <button class="range-pill" data-range="30" data-ctx="global" aria-pressed="true">1M</button>
+            <button class="range-pill" data-range="90" data-ctx="global">3M</button>
+            <button class="range-pill" data-range="180" data-ctx="global">6M</button>
+            <button class="range-pill" data-range="365" data-ctx="global">1Y</button>
+            <button class="range-pill" data-range="all" data-ctx="global">All</button>
+          </div>
+        </div>
+        <div id="global-chart-note" style="display:none;font-size:0.78rem;color:var(--text-muted);margin-bottom:10px;padding:8px 12px;background:rgba(124,58,237,0.08);border-radius:8px;border:1px solid rgba(124,58,237,0.15)">
+          ⚡ Set a <strong style="color:var(--purple-400)">Daily Target</strong> on your goals to see completion % here.
+        </div>
+        <div class="chart-canvas-wrap">
+          <canvas id="chart-global-daily"></canvas>
+        </div>
+      </div>
+
+      <!-- Active vs Completed Donut -->
+      <div class="chart-wrap">
+        <div class="chart-title">🎯 Active vs Completed</div>
+        <div class="chart-canvas-wrap" style="height:220px">
+          <canvas id="chart-donut"></canvas>
+        </div>
+      </div>
+
+      <!-- Per-Goal Charts -->
+      <div class="chart-wrap">
+        <div class="chart-title">🔍 Per-Goal Analytics</div>
+        <div class="goal-selector-row" id="goal-chip-row"></div>
+        <!-- Controls row: range + time-unit -->
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:10px">
+          <div class="range-pill-row" id="per-goal-range-row">
+            <button class="range-pill" data-range="7"   data-ctx="pergoal">7D</button>
+            <button class="range-pill" data-range="30"  data-ctx="pergoal" aria-pressed="true">1M</button>
+            <button class="range-pill" data-range="90"  data-ctx="pergoal">3M</button>
+            <button class="range-pill" data-range="180" data-ctx="pergoal">6M</button>
+            <button class="range-pill" data-range="365" data-ctx="pergoal">1Y</button>
+            <button class="range-pill" data-range="all" data-ctx="pergoal">All</button>
+          </div>
+          <div class="unit-toggle-row" id="per-goal-unit-row" style="display:none">
+            <button class="unit-pill active" data-unit="sec" data-ctx="pergoal">Sec</button>
+            <button class="unit-pill" data-unit="min" data-ctx="pergoal">Min</button>
+            <button class="unit-pill" data-unit="hr"  data-ctx="pergoal">Hr</button>
+          </div>
+        </div>
+        <div style="font-size:0.85rem;font-weight:600;color:var(--text-secondary);margin-bottom:8px" id="per-goal-chart-title"></div>
+        <div class="chart-canvas-wrap">
+          <canvas id="chart-per-goal-daily"></canvas>
+        </div>
+        <div style="margin-top:20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:8px">
+          <div style="font-size:0.75rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.07em">Weekly Consistency</div>
+        </div>
+        <div class="chart-canvas-wrap">
+          <canvas id="chart-per-goal-weekly"></canvas>
+        </div>
+      </div>
+
+    </section>
+  </main>
+
+</div><!-- /#app -->
+
+<!-- ── FAB ────────────────────────────────────────────────────── -->
+<button class="fab" id="fab-add" aria-label="Add Goal">+</button>
+
+<!-- ── Bottom Navigation ────────────────────────────────────── -->
+<nav class="bottom-nav" role="navigation" aria-label="Main navigation">
+  <button class="nav-item active" data-tab="active" id="nav-active">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+    </svg>
+    Active
+  </button>
+  <button class="nav-item" data-tab="completed" id="nav-completed">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <polyline points="20 6 9 17 4 12"/>
+    </svg>
+    Completed
+  </button>
+  <button class="nav-item" data-tab="analytics" id="nav-analytics">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/>
+      <line x1="6" y1="20" x2="6" y2="14"/>
+    </svg>
+    Analytics
+  </button>
+</nav>
+
+<!-- ══════════════════════════════════════════════════════════ -->
+<!--  MODALS                                                      -->
+<!-- ══════════════════════════════════════════════════════════ -->
+
+<!-- ── Add / Edit Goal Modal ─────────────────────────────────── -->
+<div class="modal-overlay" id="modal-goal" role="dialog" aria-modal="true" aria-labelledby="modal-goal-title">
+  <div class="modal-sheet">
+    <div class="modal-drag-handle"></div>
+    <div style="position:relative">
+      <h2 class="modal-title" id="modal-goal-title">New Goal</h2>
+      <button class="modal-close" data-close-modal="modal-goal" aria-label="Close">✕</button>
+    </div>
+
+    <form id="goal-form" novalidate>
+      <!-- Title -->
+      <div class="form-group">
+        <label class="form-label" for="goal-title-input">Goal Title</label>
+        <input type="text" id="goal-title-input" class="form-input" placeholder="e.g. DSA Course, Anime Series…" maxlength="60" required />
+      </div>
+
+      <!-- Unit -->
+      <div class="form-group">
+        <label class="form-label" for="goal-unit-select">Unit Type</label>
+        <select id="goal-unit-select" class="form-select">
+          <option value="hours">⏱ Hours (h:m:s)</option>
+          <option value="videos" selected>📹 Videos</option>
+          <option value="pages">📄 Pages</option>
+          <option value="problems">🧩 Problems</option>
+          <option value="custom">✏️ Custom…</option>
+        </select>
+      </div>
+
+      <!-- Custom unit input -->
+      <div class="form-group" id="custom-unit-wrap" style="display:none">
+        <label class="form-label" for="goal-custom-unit">Custom Unit Name</label>
+        <input type="text" id="goal-custom-unit" class="form-input" placeholder="e.g. chapters, episodes, km…" maxlength="30" />
+      </div>
+
+      <!-- Target (number) -->
+      <div class="form-group" id="target-number-wrap">
+        <label class="form-label" for="goal-target-input">Total Target</label>
+        <input type="number" id="goal-target-input" class="form-input" placeholder="e.g. 400" min="1" />
+      </div>
+
+      <!-- Target (time) -->
+      <div class="form-group" id="target-time-wrap" style="display:none">
+        <label class="form-label">Total Target Time</label>
+        <div class="time-input-group">
+          <div class="time-input-wrap"><label>Hours</label><input type="number" id="goal-time-h" min="0" placeholder="0" /></div>
+          <div class="time-input-wrap"><label>Minutes</label><input type="number" id="goal-time-m" min="0" max="59" placeholder="0" /></div>
+          <div class="time-input-wrap"><label>Seconds</label><input type="number" id="goal-time-s" min="0" max="59" placeholder="0" /></div>
+        </div>
+      </div>
+
+      <!-- Starting Progress (number) -->
+      <div class="form-group" id="start-number-wrap">
+        <label class="form-label" for="goal-start-input">Already Completed (optional)</label>
+        <input type="number" id="goal-start-input" class="form-input" placeholder="e.g. 200" min="0" value="0" />
+      </div>
+
+      <!-- Starting Progress (time) -->
+      <div class="form-group" id="start-time-wrap" style="display:none">
+        <label class="form-label">Already Completed Time (optional)</label>
+        <div class="time-input-group">
+          <div class="time-input-wrap"><label>Hours</label><input type="number" id="goal-start-h" min="0" placeholder="0" /></div>
+          <div class="time-input-wrap"><label>Minutes</label><input type="number" id="goal-start-m" min="0" max="59" placeholder="0" /></div>
+          <div class="time-input-wrap"><label>Seconds</label><input type="number" id="goal-start-s" min="0" max="59" placeholder="0" /></div>
+        </div>
+      </div>
+
+      <!-- Daily Target (number) -->
+      <div class="form-group" id="daily-target-number-wrap">
+        <label class="form-label" for="goal-daily-target-input">Daily Target <span style="color:var(--text-muted);font-weight:400;font-size:0.75em">(optional — shows pace on chart)</span></label>
+        <input type="number" id="goal-daily-target-input" class="form-input" placeholder="e.g. 2 per day" min="0.01" step="any" />
+      </div>
+
+      <!-- Daily Target (time) -->
+      <div class="form-group" id="daily-target-time-wrap" style="display:none">
+        <label class="form-label">Daily Target Time <span style="color:var(--text-muted);font-weight:400;font-size:0.75em">(optional)</span></label>
+        <div class="time-input-group">
+          <div class="time-input-wrap"><label>Hours</label><input type="number" id="goal-daily-h" min="0" placeholder="0" /></div>
+          <div class="time-input-wrap"><label>Minutes</label><input type="number" id="goal-daily-m" min="0" max="59" placeholder="0" /></div>
+          <div class="time-input-wrap"><label>Seconds</label><input type="number" id="goal-daily-s" min="0" max="59" placeholder="0" /></div>
+        </div>
+      </div>
+
+      <!-- Color -->
+      <div class="form-group">
+        <label class="form-label">Accent Color</label>
+        <div class="color-picker-row">
+          <div class="color-swatch selected" data-color="#7c3aed" style="background:#7c3aed"></div>
+          <div class="color-swatch" data-color="#0ea5e9" style="background:#0ea5e9"></div>
+          <div class="color-swatch" data-color="#10b981" style="background:#10b981"></div>
+          <div class="color-swatch" data-color="#f59e0b" style="background:#f59e0b"></div>
+          <div class="color-swatch" data-color="#ef4444" style="background:#ef4444"></div>
+          <div class="color-swatch" data-color="#ec4899" style="background:#ec4899"></div>
+          <div class="color-swatch" data-color="#14b8a6" style="background:#14b8a6"></div>
+          <div class="color-swatch" data-color="#f97316" style="background:#f97316"></div>
+        </div>
+      </div>
+
+      <button type="submit" class="btn-submit" id="goal-submit-btn">Create Goal 🎯</button>
+    </form>
+  </div>
+</div>
+
+<!-- ── Log Progress Modal ─────────────────────────────────────── -->
+<div class="modal-overlay" id="modal-log" role="dialog" aria-modal="true">
+  <div class="modal-sheet">
+    <div class="modal-drag-handle"></div>
+    <div style="position:relative">
+      <h2 class="modal-title" id="modal-log-title">Log Progress</h2>
+      <button class="modal-close" data-close-modal="modal-log" aria-label="Close">✕</button>
+    </div>
+
+    <form id="log-form" novalidate>
+      <!-- Number input -->
+      <div class="form-group" id="log-number-wrap">
+        <label class="form-label">Amount completed today</label>
+        <div style="position:relative">
+          <input type="number" id="log-value" class="form-input" placeholder="e.g. 5" min="0.01" step="any"
+            style="padding-right:80px" />
+          <span id="log-unit-label" style="position:absolute;right:14px;top:50%;transform:translateY(-50%);color:var(--text-muted);font-size:0.85rem;font-weight:600;pointer-events:none"></span>
+        </div>
+      </div>
+
+      <!-- Time input -->
+      <div class="form-group" id="log-time-wrap" style="display:none">
+        <label class="form-label">Time completed today</label>
+        <div class="time-input-group">
+          <div class="time-input-wrap"><label>Hours</label><input type="number" id="log-h" min="0" placeholder="0" /></div>
+          <div class="time-input-wrap"><label>Minutes</label><input type="number" id="log-m" min="0" max="59" placeholder="0" /></div>
+          <div class="time-input-wrap"><label>Seconds</label><input type="number" id="log-s" min="0" max="59" placeholder="0" /></div>
+        </div>
+      </div>
+
+      <div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:16px">
+        📅 Logging for today: <strong style="color:var(--text-secondary)" id="log-date-display"></strong>
+      </div>
+
+      <button type="submit" class="btn-submit">Log Progress ✓</button>
+    </form>
+  </div>
+</div>
+
+<!-- ── Goal Detail Modal ──────────────────────────────────────── -->
+<div class="modal-overlay" id="modal-detail" role="dialog" aria-modal="true">
+  <div class="modal-sheet">
+    <div class="modal-drag-handle"></div>
+    <button class="modal-close" data-close-modal="modal-detail" aria-label="Close">✕</button>
+
+    <!-- Header -->
+    <div class="detail-header">
+      <div class="detail-color-dot" id="detail-color-dot"></div>
+      <h2 class="modal-title" id="detail-title" style="margin-bottom:0"></h2>
+    </div>
+
+    <!-- Progress bar -->
+    <div class="progress-bar-track" style="height:8px;margin-bottom:20px">
+      <div class="progress-bar-fill" id="detail-progress-fill" style="width:0%"></div>
+    </div>
+
+    <!-- Stats grid -->
+    <div class="goal-detail-stats">
+      <div class="stat-card">
+        <div class="stat-icon">✅</div>
+        <div class="stat-value" id="detail-completed">—</div>
+        <div class="stat-label">Completed</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon">🎯</div>
+        <div class="stat-value" id="detail-target">—</div>
+        <div class="stat-label">Target</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon">⏳</div>
+        <div class="stat-value" id="detail-remaining">—</div>
+        <div class="stat-label">Remaining</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon">📊</div>
+        <div class="stat-value" id="detail-pct">0%</div>
+        <div class="stat-label">Progress</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon">🔥</div>
+        <div class="stat-value" id="detail-streak">0 days</div>
+        <div class="stat-label">Streak</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon">📈</div>
+        <div class="stat-value" id="detail-avg">—</div>
+        <div class="stat-label">Avg/Day</div>
+      </div>
+    </div>
+
+    <div class="stat-card" style="margin-bottom:16px;flex-direction:row;align-items:center;gap:12px;display:flex">
+      <div style="font-size:1.5rem">🗓️</div>
+      <div>
+        <div class="stat-value" id="detail-days-left" style="font-size:1.2rem">N/A</div>
+        <div class="stat-label" style="text-align:left">Estimated Days to Finish</div>
+      </div>
+    </div>
+
+    <!-- Charts -->
+    <div class="chart-wrap">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">
+        <div class="chart-title" style="margin-bottom:0">Daily Progress</div>
+        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+          <!-- View toggle -->
+          <div class="unit-toggle-row">
+            <button class="unit-pill active" data-view="daily" data-ctx="detail">Daily</button>
+            <button class="unit-pill" data-view="cumulative" data-ctx="detail">Cumulative</button>
+          </div>
+          <div class="range-pill-row" id="detail-range-row">
+            <button class="range-pill" data-range="7"   data-ctx="detail">7D</button>
+            <button class="range-pill" data-range="30"  data-ctx="detail" aria-pressed="true">1M</button>
+            <button class="range-pill" data-range="90"  data-ctx="detail">3M</button>
+            <button class="range-pill" data-range="180" data-ctx="detail">6M</button>
+            <button class="range-pill" data-range="365" data-ctx="detail">1Y</button>
+            <button class="range-pill" data-range="all" data-ctx="detail">All</button>
+          </div>
+          <div class="unit-toggle-row" id="detail-unit-row" style="display:none">
+            <button class="unit-pill active" data-unit="sec" data-ctx="detail">Sec</button>
+            <button class="unit-pill" data-unit="min" data-ctx="detail">Min</button>
+            <button class="unit-pill" data-unit="hr"  data-ctx="detail">Hr</button>
+          </div>
+        </div>
+      </div>
+      <div class="chart-canvas-wrap"><canvas id="chart-detail-daily"></canvas></div>
+    </div>
+    <div class="chart-wrap">
+      <div class="chart-title">Weekly Consistency</div>
+      <div class="chart-canvas-wrap"><canvas id="chart-detail-weekly"></canvas></div>
+    </div>
+
+    <!-- Action buttons -->
+    <div class="detail-actions-row" style="margin-top:20px">
+      <button id="detail-btn-log">+ Log</button>
+      <button id="detail-btn-edit">✏️ Edit</button>
+      <button id="detail-btn-reset">🔄 Reset</button>
+      <button id="detail-btn-delete" class="danger">🗑️ Delete</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Settings Modal ─────────────────────────────────────────── -->
+<div class="modal-overlay" id="modal-settings" role="dialog" aria-modal="true">
+  <div class="modal-sheet">
+    <div class="modal-drag-handle"></div>
+    <div style="position:relative">
+      <h2 class="modal-title">Settings</h2>
+      <button class="modal-close" data-close-modal="modal-settings" aria-label="Close">✕</button>
+    </div>
+
+    <div class="settings-section">
+      <h3>Data & Backup</h3>
+      <div class="settings-item">
+        <div>
+          <div class="settings-item-label">Export Backup</div>
+          <div class="settings-item-sublabel">Download all goals as JSON</div>
+        </div>
+        <button class="settings-btn" id="settings-export-btn">Export</button>
+      </div>
+      <div class="settings-item">
+        <div>
+          <div class="settings-item-label">Import Backup</div>
+          <div class="settings-item-sublabel">Restore from JSON file</div>
+        </div>
+        <button class="settings-btn" id="settings-import-btn">Import</button>
+      </div>
+      <input type="file" id="settings-import-file" accept=".json" style="display:none" />
+    </div>
+
+    <div class="settings-section">
+      <h3>About</h3>
+      <div class="settings-item">
+        <div>
+          <div class="settings-item-label">HabitPulse</div>
+          <div class="settings-item-sublabel">v1.0 · Phase 1 (localStorage)</div>
+        </div>
+        <span style="font-size:1.25rem">🎯</span>
+      </div>
+      <div class="settings-item">
+        <div>
+          <div class="settings-item-label">Firebase Sync</div>
+          <div class="settings-item-sublabel">Coming in Phase 2</div>
+        </div>
+        <span style="font-size:0.75rem;color:var(--text-muted);padding:4px 10px;border:1px solid var(--border-glass);border-radius:99px">Soon</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Confirm Overlay ────────────────────────────────────────── -->
+<div class="confirm-overlay" id="confirm-overlay">
+  <div class="confirm-box">
+    <div class="confirm-icon" id="confirm-icon">⚠️</div>
+    <div class="confirm-title" id="confirm-title">Are you sure?</div>
+    <div class="confirm-msg" id="confirm-msg">This action cannot be undone.</div>
+    <div class="confirm-btns">
+      <button class="btn-cancel-confirm" id="btn-cancel-confirm">Cancel</button>
+      <button class="btn-confirm-action" id="btn-confirm-action">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Toast Container ─────────────────────────────────────────── -->
+<div id="toast-container" aria-live="polite"></div>
+
+<!-- ── Scripts ─────────────────────────────────────────────────── -->
+<script type="module" src="./js/app.js"></script>
+
+<script>
+  // Inject today's date into log modal when it opens
+  document.addEventListener('DOMContentLoaded', () => {
+    const today = new Date().toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric' });
+    const el = document.getElementById('log-date-display');
+    if (el) el.textContent = today;
+  });
+</script>
+
+</body>
+</html>
