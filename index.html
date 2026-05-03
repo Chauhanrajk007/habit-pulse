@@ -341,8 +341,14 @@
       <button class="modal-close" data-close-modal="modal-log" aria-label="Close">✕</button>
     </div>
 
-    <form id="log-form" novalidate>
-      <!-- Number input -->
+      <!-- Log mode tabs: shown for ALL goal types -->
+      <div class="log-mode-row">
+        <button type="button" class="log-mode-btn active" id="log-mode-duration">⏱ Duration</button>
+        <button type="button" class="log-mode-btn" id="log-mode-fromto">📍 Up to</button>
+      </div>
+
+      <!-- DURATION MODE -->
+      <!-- Number input (non-time goals) -->
       <div class="form-group" id="log-number-wrap">
         <label class="form-label">Amount completed today</label>
         <div style="position:relative">
@@ -351,15 +357,8 @@
           <span id="log-unit-label" style="position:absolute;right:14px;top:50%;transform:translateY(-50%);color:var(--text-muted);font-size:0.85rem;font-weight:600;pointer-events:none"></span>
         </div>
       </div>
-
-      <!-- Time input: Duration or From→To -->
+      <!-- Time input (time goals) -->
       <div class="form-group" id="log-time-wrap" style="display:none">
-        <!-- Tab row -->
-        <div class="log-mode-row">
-          <button type="button" class="log-mode-btn active" id="log-mode-duration">⏱ Duration</button>
-          <button type="button" class="log-mode-btn" id="log-mode-fromto">📍 Up to</button>
-        </div>
-        <!-- Duration inputs -->
         <div id="log-duration-inputs">
           <label class="form-label">How much time did you watch?</label>
           <div class="time-input-group">
@@ -368,24 +367,25 @@
             <div class="time-input-wrap"><label>Seconds</label><input type="number" id="log-s" min="0" max="59" placeholder="0" /></div>
           </div>
         </div>
-        <!-- From → To inputs -->
-        <div id="log-fromto-inputs" style="display:none">
-          <div class="log-position-prev" id="log-prev-display"></div>
-          <label class="form-label" id="log-upto-label">Up to —</label>
-          <!-- Time position input -->
-          <div id="log-pos-time-wrap" style="display:none">
-            <div class="time-input-group">
-              <div class="time-input-wrap"><label>Hours</label><input type="number" id="log-pos-h" min="0" placeholder="0" /></div>
-              <div class="time-input-wrap"><label>Minutes</label><input type="number" id="log-pos-m" min="0" max="59" placeholder="0" /></div>
-              <div class="time-input-wrap"><label>Seconds</label><input type="number" id="log-pos-s" min="0" max="59" placeholder="0" /></div>
-            </div>
+      </div>
+
+      <!-- UP TO MODE (position-based) -->
+      <div class="form-group" id="log-fromto-inputs" style="display:none">
+        <div class="log-position-prev" id="log-prev-display"></div>
+        <label class="form-label" id="log-upto-label">Up to —</label>
+        <!-- Time position (for time goals) -->
+        <div id="log-pos-time-wrap" style="display:none">
+          <div class="time-input-group">
+            <div class="time-input-wrap"><label>Hours</label><input type="number" id="log-pos-h" min="0" placeholder="0" /></div>
+            <div class="time-input-wrap"><label>Minutes</label><input type="number" id="log-pos-m" min="0" max="59" placeholder="0" /></div>
+            <div class="time-input-wrap"><label>Seconds</label><input type="number" id="log-pos-s" min="0" max="59" placeholder="0" /></div>
           </div>
-          <!-- Number position input -->
-          <div id="log-pos-number-wrap">
-            <input type="number" id="log-pos-value" class="form-input" placeholder="e.g. 8" min="0" step="any" />
-          </div>
-          <div id="log-fromto-preview" style="margin-top:8px;font-size:0.8rem;color:var(--text-muted)"></div>
         </div>
+        <!-- Number position (for non-time goals) -->
+        <div id="log-pos-number-wrap" style="display:none">
+          <input type="number" id="log-pos-value" class="form-input" placeholder="e.g. 8" min="0" step="any" />
+        </div>
+        <div id="log-fromto-preview" style="margin-top:8px;font-size:0.8rem"></div>
       </div>
 
       <div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:16px">
@@ -393,6 +393,7 @@
       </div>
 
       <button type="submit" class="btn-submit">Log Progress ✓</button>
+
     </form>
   </div>
 </div>

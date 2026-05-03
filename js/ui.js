@@ -527,15 +527,17 @@ export function openLogModal(goalId) {
   document.getElementById('log-form').dataset.goalId = goalId;
   document.getElementById('log-form').dataset.unit = goal.unit;
   document.getElementById('log-form').dataset.logMode = 'duration';
-
   const isTime = goal.isTime;
+  document.getElementById('log-form').dataset.isTime = isTime ? 'true' : 'false';
+
+  // Duration mode: show correct input type
   document.getElementById('log-number-wrap').style.display = isTime ? 'none' : 'block';
   document.getElementById('log-time-wrap').style.display = isTime ? 'block' : 'none';
   document.getElementById('log-unit-label').textContent = goal.isTime ? '' : goal.unit;
-
-  // Reset to duration mode
-  document.getElementById('log-duration-inputs').style.display = '';
   document.getElementById('log-fromto-inputs').style.display = 'none';
+
+
+  // Reset tabs
   document.getElementById('log-mode-duration').classList.add('active');
   document.getElementById('log-mode-fromto').classList.remove('active');
   document.getElementById('log-fromto-preview').textContent = '';
@@ -573,16 +575,21 @@ export function openLogModal(goalId) {
 export function initLogForm() {
   // Duration / Up-to tab toggle
   document.getElementById('log-mode-duration').addEventListener('click', () => {
-    document.getElementById('log-form').dataset.logMode = 'duration';
-    document.getElementById('log-duration-inputs').style.display = '';
+    const form = document.getElementById('log-form');
+    form.dataset.logMode = 'duration';
+    const isTime = form.dataset.isTime === 'true';
+    document.getElementById('log-number-wrap').style.display = isTime ? 'none' : 'block';
+    document.getElementById('log-time-wrap').style.display = isTime ? 'block' : 'none';
     document.getElementById('log-fromto-inputs').style.display = 'none';
     document.getElementById('log-mode-duration').classList.add('active');
     document.getElementById('log-mode-fromto').classList.remove('active');
   });
   document.getElementById('log-mode-fromto').addEventListener('click', () => {
-    document.getElementById('log-form').dataset.logMode = 'fromto';
-    document.getElementById('log-duration-inputs').style.display = 'none';
-    document.getElementById('log-fromto-inputs').style.display = '';
+    const form = document.getElementById('log-form');
+    form.dataset.logMode = 'fromto';
+    document.getElementById('log-number-wrap').style.display = 'none';
+    document.getElementById('log-time-wrap').style.display = 'none';
+    document.getElementById('log-fromto-inputs').style.display = 'block';
     document.getElementById('log-mode-duration').classList.remove('active');
     document.getElementById('log-mode-fromto').classList.add('active');
   });
