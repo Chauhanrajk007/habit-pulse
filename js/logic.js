@@ -163,9 +163,10 @@ export function getGlobalAnalytics(days = 30) {
     return { date: d, value: Math.round(pct) };
   });
 
-  const totalTarget = goals.reduce((s, g) => s + g.target, 0);
-  const totalCompleted = goals.reduce((s, g) => s + g.completed, 0);
-  const overallPercent = totalTarget > 0 ? Math.round((totalCompleted / totalTarget) * 100) : 0;
+const validGoals = goals.filter(g => g.target > 0 && g.target !== Infinity);
+  const overallPercent = validGoals.length > 0 
+    ? Math.round(validGoals.reduce((sum, g) => sum + Math.min(100, (g.completed / g.target) * 100), 0) / validGoals.length)
+    : 0;
   const bestStreak = goals.reduce((max, g) => Math.max(max, computeStreak(g.history)), 0);
   const today = todayStr();
   const todayTotal = goals.reduce((s, g) => {
