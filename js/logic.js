@@ -54,14 +54,16 @@ export function formatValue(value, unit) {
   return `${Number(value).toLocaleString()} ${unit}`;
 }
 
-export function createGoal({ title, unit, target, startingProgress, color, dailyTarget }) {
+export function createGoal({ title, unit, target, startingProgress, color, dailyTarget, type }) {
   const goals = getGoals();
+  const isHabit = type === 'habit';
   const goal = {
     id: generateId(),
     title: title.trim(),
     unit,
+    type: isHabit ? 'habit' : 'goal',
     isTime: isTimeUnit(unit),
-    target: Number(target),
+    target: isHabit ? Infinity : Number(target),
     startingProgress: Number(startingProgress) || 0,
     completed: Number(startingProgress) || 0,
     history: [],
@@ -70,7 +72,7 @@ export function createGoal({ title, unit, target, startingProgress, color, daily
     color: color || pickColor(goals),
     dailyTarget: dailyTarget || null,
   };
-  if (goal.completed >= goal.target) goal.isCompleted = true;
+  if (!isHabit && goal.completed >= goal.target) goal.isCompleted = true;
   upsertGoal(goal);
   return goal;
 }
@@ -86,7 +88,8 @@ export function logProgress(goalId, rawValue) {
   if (existing) existing.value += value;
   else goal.history.push({ date: today, value });
   goal.completed += value;
-  if (!goal.isCompleted && goal.completed >= goal.target) {
+  // Habits never auto-complete (no fixed target)
+  if (goal.type !== 'habit' && !goal.isCompleted && goal.completed >= goal.target) {
     goal.isCompleted = true;
     goal.completedAt = new Date().toISOString();
   }
@@ -256,6 +259,31 @@ export function resetGoalProgress(goalId) {
   upsertGoal(goal);
   return goal;
 }
+
+// ── Habit Deficit / Surplus ───────────────────────────────────
+// Calculates running cumulative behind/ahead vs dailyTarget.
+// Per day: deficit += (dailyTarget - logged). Positive = behind.
+// Example: target 5/day, days [4, 6, 4] → deficit = 1+(-1)+1 = 1 behind
+export function getHabitDeficit(goal) {
+  if (!goal.dailyTarget || goal.dailyTarget <= 0) return null;
+  const createdDate = (goal.createdAt || new Date().toISOString()).slice(0, 10);
+  const today = todayStr();
+  let deficit = 0;
+  let cur = createdDate;
+  while (cur <= today) {
+    const entry = goal.history.find(h => h.date === cur);
+    const logged = entry ? entry.value : 0;
+    deficit += (goal.dailyTarget - logged); // positive = behind that day
+    cur = shiftDate(cur, 1);
+  }
+  return {
+    raw: deficit,           // positive = behind, negative = ahead
+    isAhead: deficit <= 0,
+    isOnTrack: deficit === 0,
+    value: Math.abs(deficit),
+  };
+}
+
 
 // ── Daily Target helpers ──────────────────────────────────────
 

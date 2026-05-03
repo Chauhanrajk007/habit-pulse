@@ -223,9 +223,23 @@
     </div>
 
     <form id="goal-form" novalidate>
+      <!-- Type toggle -->
+      <div class="form-group">
+        <label class="form-label">Type</label>
+        <div class="type-toggle-row">
+          <button type="button" class="type-btn active" id="type-btn-goal" data-type="goal">
+            🎯 Goal <span class="type-btn-sub">Fixed target</span>
+          </button>
+          <button type="button" class="type-btn" id="type-btn-habit" data-type="habit">
+            🔁 Habit <span class="type-btn-sub">No end date</span>
+          </button>
+        </div>
+      </div>
+      <input type="hidden" id="goal-type-input" value="goal" />
+
       <!-- Title -->
       <div class="form-group">
-        <label class="form-label" for="goal-title-input">Goal Title</label>
+        <label class="form-label" for="goal-title-input" id="goal-title-label">Goal Title</label>
         <input type="text" id="goal-title-input" class="form-input" placeholder="e.g. DSA Course, Anime Series…" maxlength="60" required />
       </div>
 
@@ -247,26 +261,29 @@
         <input type="text" id="goal-custom-unit" class="form-input" placeholder="e.g. chapters, episodes, km…" maxlength="30" />
       </div>
 
-      <!-- Target (number) -->
-      <div class="form-group" id="target-number-wrap">
-        <label class="form-label" for="goal-target-input">Total Target</label>
-        <input type="number" id="goal-target-input" class="form-input" placeholder="e.g. 400" min="1" />
-      </div>
+      <!-- Total Target (hidden for habits) -->
+      <div id="goal-only-wrap">
+        <!-- Target (number) -->
+        <div class="form-group" id="target-number-wrap">
+          <label class="form-label" for="goal-target-input">Total Target</label>
+          <input type="number" id="goal-target-input" class="form-input" placeholder="e.g. 400" min="1" />
+        </div>
 
-      <!-- Target (time) -->
-      <div class="form-group" id="target-time-wrap" style="display:none">
-        <label class="form-label">Total Target Time</label>
-        <div class="time-input-group">
-          <div class="time-input-wrap"><label>Hours</label><input type="number" id="goal-time-h" min="0" placeholder="0" /></div>
-          <div class="time-input-wrap"><label>Minutes</label><input type="number" id="goal-time-m" min="0" max="59" placeholder="0" /></div>
-          <div class="time-input-wrap"><label>Seconds</label><input type="number" id="goal-time-s" min="0" max="59" placeholder="0" /></div>
+        <!-- Target (time) -->
+        <div class="form-group" id="target-time-wrap" style="display:none">
+          <label class="form-label">Total Target Time</label>
+          <div class="time-input-group">
+            <div class="time-input-wrap"><label>Hours</label><input type="number" id="goal-time-h" min="0" placeholder="0" /></div>
+            <div class="time-input-wrap"><label>Minutes</label><input type="number" id="goal-time-m" min="0" max="59" placeholder="0" /></div>
+            <div class="time-input-wrap"><label>Seconds</label><input type="number" id="goal-time-s" min="0" max="59" placeholder="0" /></div>
+          </div>
         </div>
       </div>
 
-      <!-- Starting Progress (number) -->
+      <!-- Starting Amount -->
       <div class="form-group" id="start-number-wrap">
-        <label class="form-label" for="goal-start-input">Already Completed (optional)</label>
-        <input type="number" id="goal-start-input" class="form-input" placeholder="e.g. 200" min="0" value="0" />
+        <label class="form-label" for="goal-start-input">Starting Amount <span style="color:var(--text-muted);font-weight:400;font-size:0.75em">(already done)</span></label>
+        <input type="number" id="goal-start-input" class="form-input" placeholder="e.g. 50" min="0" value="0" />
       </div>
 
       <!-- Starting Progress (time) -->
@@ -281,13 +298,13 @@
 
       <!-- Daily Target (number) -->
       <div class="form-group" id="daily-target-number-wrap">
-        <label class="form-label" for="goal-daily-target-input">Daily Target <span style="color:var(--text-muted);font-weight:400;font-size:0.75em">(optional — shows pace on chart)</span></label>
-        <input type="number" id="goal-daily-target-input" class="form-input" placeholder="e.g. 2 per day" min="0.01" step="any" />
+        <label class="form-label" for="goal-daily-target-input">Daily Target <span id="daily-target-hint" style="color:var(--text-muted);font-weight:400;font-size:0.75em">(optional — shows pace &amp; deficit)</span></label>
+        <input type="number" id="goal-daily-target-input" class="form-input" placeholder="e.g. 1 per day" min="0.01" step="any" />
       </div>
 
       <!-- Daily Target (time) -->
       <div class="form-group" id="daily-target-time-wrap" style="display:none">
-        <label class="form-label">Daily Target Time <span style="color:var(--text-muted);font-weight:400;font-size:0.75em">(optional)</span></label>
+        <label class="form-label">Daily Target Time <span id="daily-target-time-hint" style="color:var(--text-muted);font-weight:400;font-size:0.75em">(optional)</span></label>
         <div class="time-input-group">
           <div class="time-input-wrap"><label>Hours</label><input type="number" id="goal-daily-h" min="0" placeholder="0" /></div>
           <div class="time-input-wrap"><label>Minutes</label><input type="number" id="goal-daily-m" min="0" max="59" placeholder="0" /></div>
@@ -335,13 +352,37 @@
         </div>
       </div>
 
-      <!-- Time input -->
+      <!-- Time input: Duration or From→To -->
       <div class="form-group" id="log-time-wrap" style="display:none">
-        <label class="form-label">Time completed today</label>
-        <div class="time-input-group">
-          <div class="time-input-wrap"><label>Hours</label><input type="number" id="log-h" min="0" placeholder="0" /></div>
-          <div class="time-input-wrap"><label>Minutes</label><input type="number" id="log-m" min="0" max="59" placeholder="0" /></div>
-          <div class="time-input-wrap"><label>Seconds</label><input type="number" id="log-s" min="0" max="59" placeholder="0" /></div>
+        <!-- Tab row -->
+        <div class="log-mode-row">
+          <button type="button" class="log-mode-btn active" id="log-mode-duration">⏱ Duration</button>
+          <button type="button" class="log-mode-btn" id="log-mode-fromto">📍 From → To</button>
+        </div>
+        <!-- Duration inputs -->
+        <div id="log-duration-inputs">
+          <label class="form-label">How much time did you watch?</label>
+          <div class="time-input-group">
+            <div class="time-input-wrap"><label>Hours</label><input type="number" id="log-h" min="0" placeholder="0" /></div>
+            <div class="time-input-wrap"><label>Minutes</label><input type="number" id="log-m" min="0" max="59" placeholder="0" /></div>
+            <div class="time-input-wrap"><label>Seconds</label><input type="number" id="log-s" min="0" max="59" placeholder="0" /></div>
+          </div>
+        </div>
+        <!-- From → To inputs -->
+        <div id="log-fromto-inputs" style="display:none">
+          <label class="form-label">Watched from → to</label>
+          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+            <div style="flex:1;min-width:120px">
+              <div style="font-size:0.72rem;color:var(--text-muted);margin-bottom:4px">Start</div>
+              <input type="time" id="log-from-time" step="1" class="form-input" />
+            </div>
+            <div style="color:var(--text-muted);font-size:1.2rem;padding-top:14px">→</div>
+            <div style="flex:1;min-width:120px">
+              <div style="font-size:0.72rem;color:var(--text-muted);margin-bottom:4px">End</div>
+              <input type="time" id="log-to-time" step="1" class="form-input" />
+            </div>
+          </div>
+          <div id="log-fromto-preview" style="margin-top:8px;font-size:0.8rem;color:var(--text-muted)"></div>
         </div>
       </div>
 

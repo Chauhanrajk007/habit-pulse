@@ -9,7 +9,7 @@ import {
   createGoal, logProgress, getStats, formatValue, formatSeconds,
   isTimeUnit, parseTimeToSeconds, resetGoalProgress, getDailyData,
   getWeeklyData, getGlobalAnalytics, TIME_UNIT, convertTimeValue, getTimeUnitLabel,
-  getTodayLogged, getCumulativeData, getExpectedCumulative
+  getTodayLogged, getCumulativeData, getExpectedCumulative, getHabitDeficit
 } from './logic.js';
 import {
   renderDailyLineChart, renderWeeklyBarChart,
@@ -77,6 +77,9 @@ function buildRing(percent, color) {
 
 // ── Goal Card ─────────────────────────────────────────────────
 function buildGoalCard(goal, completed = false) {
+  // Route habit cards to their own renderer
+  if (goal.type === 'habit' && !completed) return buildHabitCard(goal);
+
   const stats = getStats(goal);
   const ring = buildRing(stats.percent, goal.color);
   const unitLabel = goal.isTime ? 'hours' : goal.unit;
@@ -121,6 +124,56 @@ function buildGoalCard(goal, completed = false) {
       </div>
     </div>
     ${actionsHtml}`;
+  return card;
+}
+
+// ── Habit Card ────────────────────────────────────────────────
+function buildHabitCard(goal) {
+  const stats = getStats(goal);
+  const deficit = getHabitDeficit(goal);
+  const unitLabel = goal.isTime ? 'hours' : goal.unit;
+  const totalStr = formatValue(goal.completed - (goal.startingProgress || 0), goal.unit);
+
+  // Deficit badge
+  let deficitHtml = '';
+  if (deficit) {
+    const valStr = formatValue(deficit.value, goal.unit);
+    if (deficit.isOnTrack) {
+      deficitHtml = `<span class="pill pill-ontrack">✓ On track</span>`;
+    } else if (deficit.isAhead) {
+      deficitHtml = `<span class="pill pill-ahead">+${valStr} ahead</span>`;
+    } else {
+      deficitHtml = `<span class="pill pill-behind">${valStr} behind</span>`;
+    }
+  }
+
+  const streakHtml = stats.streak > 0
+    ? `<span class="pill pill-streak">🔥 ${stats.streak}d</span>`
+    : '';
+
+  const card = document.createElement('div');
+  card.className = 'card card-enter';
+  card.dataset.goalId = goal.id;
+  card.innerHTML = `
+    <div class="goal-card">
+      <div class="habit-icon-circle" style="background:${goal.color}22;border-color:${goal.color}44">
+        <span style="font-size:1.3rem">🔁</span>
+      </div>
+      <div class="goal-meta">
+        <div class="goal-title">${escHtml(goal.title)}</div>
+        <div class="goal-subtitle">${totalStr} logged total</div>
+        <div class="goal-footer">
+          <span class="pill pill-unit">${escHtml(unitLabel)}</span>
+          ${streakHtml}
+          ${deficitHtml}
+        </div>
+      </div>
+    </div>
+    <div class="goal-actions">
+      <button class="btn-log" data-log="${goal.id}" id="btn-log-${goal.id}">+ Log</button>
+      <button class="btn-icon" data-detail="${goal.id}" title="Details">📊</button>
+      <button class="btn-icon" data-edit="${goal.id}" title="Edit">✏️</button>
+    </div>`;
   return card;
 }
 
@@ -299,17 +352,23 @@ function populateGoalModal(goal) {
   const form = document.getElementById('goal-form');
   form.dataset.editId = goal ? goal.id : '';
   document.getElementById('modal-goal-title').textContent = goal ? 'Edit Goal' : 'New Goal';
+  document.getElementById('goal-submit-btn').textContent = goal ? 'Save Changes ✓' : 'Create Goal 🎯';
+
+  // Type toggle
+  const isHabit = goal && goal.type === 'habit';
+  document.getElementById('goal-type-input').value = isHabit ? 'habit' : 'goal';
+  document.getElementById('type-btn-goal').classList.toggle('active', !isHabit);
+  document.getElementById('type-btn-habit').classList.toggle('active', isHabit);
+  document.getElementById('goal-only-wrap').style.display = isHabit ? 'none' : '';
+  document.getElementById('goal-title-label').textContent = isHabit ? 'Habit Name' : 'Goal Title';
 
   document.getElementById('goal-title-input').value = goal ? goal.title : '';
   document.getElementById('goal-target-input').value = goal ? goal.target : '';
-  document.getElementById('goal-start-input').value = goal ? goal.startingProgress : 0;
+  document.getElementById('goal-start-input').value = goal ? (goal.startingProgress || 0) : 0;
 
   // Daily target
-  if (goal && goal.dailyTarget) {
-    document.getElementById('goal-daily-target-input').value = goal.dailyTarget;
-  } else {
-    document.getElementById('goal-daily-target-input').value = '';
-  }
+  document.getElementById('goal-daily-target-input').value =
+    (goal && goal.dailyTarget) ? goal.dailyTarget : '';
 
   // Unit
   const unitSel = document.getElementById('goal-unit-select');
@@ -339,6 +398,20 @@ function populateGoalModal(goal) {
 }
 
 export function initGoalForm() {
+  // Type toggle
+  document.querySelectorAll('.type-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const type = btn.dataset.type;
+      document.getElementById('goal-type-input').value = type;
+      document.querySelectorAll('.type-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      const isHabit = type === 'habit';
+      document.getElementById('goal-only-wrap').style.display = isHabit ? 'none' : '';
+      document.getElementById('goal-title-label').textContent = isHabit ? 'Habit Name' : 'Goal Title';
+      document.getElementById('goal-submit-btn').textContent = isHabit ? 'Create Habit 🔁' : 'Create Goal 🎯';
+    });
+  });
+
   // Unit change
   document.getElementById('goal-unit-select').addEventListener('change', toggleTimeInputs);
 
@@ -356,20 +429,24 @@ export function initGoalForm() {
     e.preventDefault();
     const form = e.target;
     const title = document.getElementById('goal-title-input').value.trim();
+    const type = document.getElementById('goal-type-input').value || 'goal';
+    const isHabit = type === 'habit';
     const unitSel = document.getElementById('goal-unit-select').value;
     const unit = unitSel === 'custom'
       ? (document.getElementById('goal-custom-unit').value.trim() || 'units')
       : unitSel;
 
-    let target;
-    if (isTimeUnit(unit)) {
-      target = parseTimeToSeconds(
-        document.getElementById('goal-time-h').value,
-        document.getElementById('goal-time-m').value,
-        document.getElementById('goal-time-s').value
-      );
-    } else {
-      target = parseFloat(document.getElementById('goal-target-input').value);
+    let target = null;
+    if (!isHabit) {
+      if (isTimeUnit(unit)) {
+        target = parseTimeToSeconds(
+          document.getElementById('goal-time-h').value,
+          document.getElementById('goal-time-m').value,
+          document.getElementById('goal-time-s').value
+        );
+      } else {
+        target = parseFloat(document.getElementById('goal-target-input').value);
+      }
     }
 
     let startingProgress = 0;
@@ -386,10 +463,11 @@ export function initGoalForm() {
     // Daily target
     let dailyTarget = null;
     if (isTimeUnit(unit)) {
-      const dh = document.getElementById('goal-daily-h').value;
-      const dm = document.getElementById('goal-daily-m').value;
-      const ds = document.getElementById('goal-daily-s').value;
-      const dt = parseTimeToSeconds(dh, dm, ds);
+      const dt = parseTimeToSeconds(
+        document.getElementById('goal-daily-h').value,
+        document.getElementById('goal-daily-m').value,
+        document.getElementById('goal-daily-s').value
+      );
       if (dt > 0) dailyTarget = dt;
     } else {
       const dt = parseFloat(document.getElementById('goal-daily-target-input').value);
@@ -397,7 +475,8 @@ export function initGoalForm() {
     }
 
     if (!title) { showToast('Please enter a title', 'error'); return; }
-    if (!target || target <= 0) { showToast('Please enter a valid target', 'error'); return; }
+    if (!isHabit && (!target || target <= 0)) { showToast('Please enter a valid target', 'error'); return; }
+    if (isHabit && !dailyTarget) { showToast('Habits need a Daily Target to track deficit', 'warning'); }
 
     const editId = form.dataset.editId;
     if (editId) {
@@ -406,16 +485,17 @@ export function initGoalForm() {
       if (goal) {
         goal.title = title;
         goal.unit = unit;
+        goal.type = type;
         goal.isTime = isTimeUnit(unit);
-        goal.target = target;
+        if (!isHabit) goal.target = target;
         goal.color = form.dataset.color || goal.color;
         goal.dailyTarget = dailyTarget;
         upsertGoal(goal);
-        showToast('Goal updated!', 'success');
+        showToast('Updated!', 'success');
       }
     } else {
-      createGoal({ title, unit, target, startingProgress, color: form.dataset.color, dailyTarget });
-      showToast('Goal created! 🎯', 'success');
+      createGoal({ title, unit, target, startingProgress, color: form.dataset.color, dailyTarget, type });
+      showToast(isHabit ? 'Habit created! 🔁' : 'Goal created! 🎯', 'success');
     }
 
     closeModal('modal-goal');
@@ -446,31 +526,66 @@ export function openLogModal(goalId) {
   document.getElementById('modal-log-title').textContent = `Log: ${goal.title}`;
   document.getElementById('log-form').dataset.goalId = goalId;
   document.getElementById('log-form').dataset.unit = goal.unit;
+  document.getElementById('log-form').dataset.logMode = 'duration';
 
   const isTime = goal.isTime;
   document.getElementById('log-number-wrap').style.display = isTime ? 'none' : 'block';
   document.getElementById('log-time-wrap').style.display = isTime ? 'block' : 'none';
   document.getElementById('log-unit-label').textContent = goal.isTime ? '' : goal.unit;
 
-  // Clear fields
-  ['log-value', 'log-h', 'log-m', 'log-s'].forEach(id => {
+  // Reset to duration mode
+  document.getElementById('log-duration-inputs').style.display = '';
+  document.getElementById('log-fromto-inputs').style.display = 'none';
+  document.getElementById('log-mode-duration').classList.add('active');
+  document.getElementById('log-mode-fromto').classList.remove('active');
+  document.getElementById('log-fromto-preview').textContent = '';
+
+  // Clear all fields
+  ['log-value', 'log-h', 'log-m', 'log-s', 'log-from-time', 'log-to-time'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.value = '';
   });
+
+  document.getElementById('log-date-display').textContent =
+    new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
 
   openModal('modal-log');
 }
 
 export function initLogForm() {
+  // Duration / From→To tab toggle
+  document.getElementById('log-mode-duration').addEventListener('click', () => {
+    document.getElementById('log-form').dataset.logMode = 'duration';
+    document.getElementById('log-duration-inputs').style.display = '';
+    document.getElementById('log-fromto-inputs').style.display = 'none';
+    document.getElementById('log-mode-duration').classList.add('active');
+    document.getElementById('log-mode-fromto').classList.remove('active');
+  });
+  document.getElementById('log-mode-fromto').addEventListener('click', () => {
+    document.getElementById('log-form').dataset.logMode = 'fromto';
+    document.getElementById('log-duration-inputs').style.display = 'none';
+    document.getElementById('log-fromto-inputs').style.display = '';
+    document.getElementById('log-mode-duration').classList.remove('active');
+    document.getElementById('log-mode-fromto').classList.add('active');
+  });
+  // Live preview
+  ['log-from-time', 'log-to-time'].forEach(id => {
+    document.getElementById(id).addEventListener('change', updateFromToPreview);
+  });
+
   document.getElementById('log-form').addEventListener('submit', e => {
     e.preventDefault();
     const form = e.target;
     const goalId = form.dataset.goalId;
     const unit = form.dataset.unit;
     const isTime = isTimeUnit(unit);
+    const logMode = form.dataset.logMode || 'duration';
 
     let value;
-    if (isTime) {
+    if (isTime && logMode === 'fromto') {
+      value = calcFromToSeconds();
+      if (!value || value <= 0) { showToast('Invalid time range — check start/end times', 'error'); return; }
+    } else if (isTime) {
       value = parseTimeToSeconds(
         document.getElementById('log-h').value,
         document.getElementById('log-m').value,
@@ -504,7 +619,26 @@ export function initLogForm() {
   });
 }
 
+function calcFromToSeconds() {
+  const fromVal = document.getElementById('log-from-time').value;
+  const toVal   = document.getElementById('log-to-time').value;
+  if (!fromVal || !toVal) return 0;
+  const toSecs = t => { const p = t.split(':').map(Number); return p[0]*3600 + p[1]*60 + (p[2]||0); };
+  let diff = toSecs(toVal) - toSecs(fromVal);
+  if (diff < 0) diff += 86400; // midnight crossing
+  return diff;
+}
+
+function updateFromToPreview() {
+  const secs = calcFromToSeconds();
+  const el = document.getElementById('log-fromto-preview');
+  if (el) el.textContent = secs > 0 ? `≈ ${formatSeconds(secs)} will be logged` : '';
+}
+
+
+
 // ── Daily Focus Banner (sticky, non-dismissable) ──────────────
+
 export function renderDailyWidget() {
   const container = document.getElementById('daily-widget');
   if (!container) return;
