@@ -531,6 +531,10 @@ export function openLogModal(goalId) {
   form.dataset.isTime = isTime ? 'true' : 'false';
   document.getElementById('log-mode-input').value = 'duration';
 
+  // Reset segmented toggle to "How much"
+  document.getElementById('log-mode-amount').classList.add('active');
+  document.getElementById('log-mode-where').classList.remove('active');
+
   // Show correct duration section, hide position sections
   document.getElementById('log-number-wrap').style.display = isTime ? 'none' : 'block';
   document.getElementById('log-pos-number-section').style.display = 'none';
@@ -538,16 +542,10 @@ export function openLogModal(goalId) {
   document.getElementById('log-pos-time-section').style.display = 'none';
   document.getElementById('log-unit-label').textContent = isTime ? '' : goal.unit;
 
-  // Populate "previously at"
-  const lastPos = goal.lastPosition != null ? goal.lastPosition : (goal.startingProgress || 0);
-  if (isTime) {
-    document.getElementById('log-prev-display-time').textContent =
-      `▶ Previously at: ${formatSeconds(lastPos)}`;
-  } else {
-    document.getElementById('log-prev-display-num').textContent =
-      `▶ Previously at: ${lastPos} ${goal.unit}`;
-    document.getElementById('log-upto-label-num').textContent =
-      `Till which ${goal.unit}?`;
+  // Update label to show the unit (e.g. 'Till which video?')
+  if (!isTime) {
+    const lbl = document.getElementById('log-upto-label-num');
+    if (lbl) lbl.textContent = `Till which ${goal.unit}?`;
   }
 
   // Clear all inputs and previews
@@ -568,32 +566,34 @@ export function openLogModal(goalId) {
 }
 
 export function initLogForm() {
-  // Switch links — number goals
-  document.getElementById('log-switch-to-pos').addEventListener('click', () => {
-    document.getElementById('log-mode-input').value = 'position';
-    document.getElementById('log-number-wrap').style.display = 'none';
-    document.getElementById('log-pos-number-section').style.display = 'block';
-    document.getElementById('log-pos-value').focus();
-  });
-  document.getElementById('log-switch-to-amount').addEventListener('click', () => {
+  // Segmented toggle — shared for both number and time goals
+  document.getElementById('log-mode-amount').addEventListener('click', () => {
+    const form = document.getElementById('log-form');
+    const isTime = form.dataset.isTime === 'true';
     document.getElementById('log-mode-input').value = 'duration';
+    document.getElementById('log-mode-amount').classList.add('active');
+    document.getElementById('log-mode-where').classList.remove('active');
+    // Show duration section
+    document.getElementById('log-number-wrap').style.display = isTime ? 'none' : 'block';
     document.getElementById('log-pos-number-section').style.display = 'none';
-    document.getElementById('log-number-wrap').style.display = 'block';
-    document.getElementById('log-value').focus();
+    document.getElementById('log-time-wrap').style.display = isTime ? 'block' : 'none';
+    document.getElementById('log-pos-time-section').style.display = 'none';
   });
 
-  // Switch links — time goals
-  document.getElementById('log-switch-to-pos-time').addEventListener('click', () => {
+  document.getElementById('log-mode-where').addEventListener('click', () => {
+    const form = document.getElementById('log-form');
+    const isTime = form.dataset.isTime === 'true';
     document.getElementById('log-mode-input').value = 'position';
+    document.getElementById('log-mode-where').classList.add('active');
+    document.getElementById('log-mode-amount').classList.remove('active');
+    // Show position section
+    document.getElementById('log-number-wrap').style.display = 'none';
+    document.getElementById('log-pos-number-section').style.display = isTime ? 'none' : 'block';
     document.getElementById('log-time-wrap').style.display = 'none';
-    document.getElementById('log-pos-time-section').style.display = 'block';
-    document.getElementById('log-pos-h').focus();
-  });
-  document.getElementById('log-switch-to-duration').addEventListener('click', () => {
-    document.getElementById('log-mode-input').value = 'duration';
-    document.getElementById('log-pos-time-section').style.display = 'none';
-    document.getElementById('log-time-wrap').style.display = 'block';
-    document.getElementById('log-h').focus();
+    document.getElementById('log-pos-time-section').style.display = isTime ? 'block' : 'none';
+    // Focus first input
+    const focusId = isTime ? 'log-pos-h' : 'log-pos-value';
+    document.getElementById(focusId)?.focus();
   });
 
   // Live preview for position inputs
