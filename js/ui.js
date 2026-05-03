@@ -524,45 +524,41 @@ export function openLogModal(goalId) {
   if (!goal) return;
 
   document.getElementById('modal-log-title').textContent = `Log: ${goal.title}`;
-  document.getElementById('log-form').dataset.goalId = goalId;
-  document.getElementById('log-form').dataset.unit = goal.unit;
-  document.getElementById('log-form').dataset.logMode = 'duration';
+  const form = document.getElementById('log-form');
+  form.dataset.goalId = goalId;
+  form.dataset.unit = goal.unit;
   const isTime = goal.isTime;
-  document.getElementById('log-form').dataset.isTime = isTime ? 'true' : 'false';
+  form.dataset.isTime = isTime ? 'true' : 'false';
+  document.getElementById('log-mode-input').value = 'duration';
 
-  // Duration mode: show correct input type
+  // Show correct duration section, hide position sections
   document.getElementById('log-number-wrap').style.display = isTime ? 'none' : 'block';
+  document.getElementById('log-pos-number-section').style.display = 'none';
   document.getElementById('log-time-wrap').style.display = isTime ? 'block' : 'none';
-  document.getElementById('log-unit-label').textContent = goal.isTime ? '' : goal.unit;
-  document.getElementById('log-fromto-inputs').style.display = 'none';
+  document.getElementById('log-pos-time-section').style.display = 'none';
+  document.getElementById('log-unit-label').textContent = isTime ? '' : goal.unit;
 
-
-  // Reset tabs
-  document.getElementById('log-mode-duration').classList.add('active');
-  document.getElementById('log-mode-fromto').classList.remove('active');
-  document.getElementById('log-fromto-preview').textContent = '';
-
-  // Populate "previously at" and configure position input type
+  // Populate "previously at"
   const lastPos = goal.lastPosition != null ? goal.lastPosition : (goal.startingProgress || 0);
-  const prevEl = document.getElementById('log-prev-display');
-  const uptoLabel = document.getElementById('log-upto-label');
   if (isTime) {
-    prevEl.textContent = `▶ Previously at: ${formatSeconds(lastPos)}`;
-    uptoLabel.textContent = 'Up to — (position in content)';
-    document.getElementById('log-pos-time-wrap').style.display = '';
-    document.getElementById('log-pos-number-wrap').style.display = 'none';
+    document.getElementById('log-prev-display-time').textContent =
+      `▶ Previously at: ${formatSeconds(lastPos)}`;
   } else {
-    prevEl.textContent = `▶ Previously at: ${lastPos} ${goal.unit}`;
-    uptoLabel.textContent = `Up to — (${goal.unit} number)`;
-    document.getElementById('log-pos-time-wrap').style.display = 'none';
-    document.getElementById('log-pos-number-wrap').style.display = '';
+    document.getElementById('log-prev-display-num').textContent =
+      `▶ Previously at: ${lastPos} ${goal.unit}`;
+    document.getElementById('log-upto-label-num').textContent =
+      `Till which ${goal.unit}?`;
   }
 
-  // Clear all fields
-  ['log-value', 'log-h', 'log-m', 'log-s',
-   'log-pos-h', 'log-pos-m', 'log-pos-s', 'log-pos-value'].forEach(id => {
+  // Clear all inputs and previews
+  ['log-value','log-h','log-m','log-s',
+   'log-pos-value','log-pos-h','log-pos-m','log-pos-s'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.value = '';
+  });
+  ['log-fromto-preview-num','log-fromto-preview-time'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) { el.textContent = ''; el.style.color = ''; }
   });
 
   document.getElementById('log-date-display').textContent =
@@ -571,30 +567,37 @@ export function openLogModal(goalId) {
   openModal('modal-log');
 }
 
-
 export function initLogForm() {
-  // Duration / Up-to tab toggle
-  document.getElementById('log-mode-duration').addEventListener('click', () => {
-    const form = document.getElementById('log-form');
-    form.dataset.logMode = 'duration';
-    const isTime = form.dataset.isTime === 'true';
-    document.getElementById('log-number-wrap').style.display = isTime ? 'none' : 'block';
-    document.getElementById('log-time-wrap').style.display = isTime ? 'block' : 'none';
-    document.getElementById('log-fromto-inputs').style.display = 'none';
-    document.getElementById('log-mode-duration').classList.add('active');
-    document.getElementById('log-mode-fromto').classList.remove('active');
-  });
-  document.getElementById('log-mode-fromto').addEventListener('click', () => {
-    const form = document.getElementById('log-form');
-    form.dataset.logMode = 'fromto';
+  // Switch links — number goals
+  document.getElementById('log-switch-to-pos').addEventListener('click', () => {
+    document.getElementById('log-mode-input').value = 'position';
     document.getElementById('log-number-wrap').style.display = 'none';
-    document.getElementById('log-time-wrap').style.display = 'none';
-    document.getElementById('log-fromto-inputs').style.display = 'block';
-    document.getElementById('log-mode-duration').classList.remove('active');
-    document.getElementById('log-mode-fromto').classList.add('active');
+    document.getElementById('log-pos-number-section').style.display = 'block';
+    document.getElementById('log-pos-value').focus();
   });
-  // Live preview for position mode
-  ['log-pos-h','log-pos-m','log-pos-s','log-pos-value'].forEach(id => {
+  document.getElementById('log-switch-to-amount').addEventListener('click', () => {
+    document.getElementById('log-mode-input').value = 'duration';
+    document.getElementById('log-pos-number-section').style.display = 'none';
+    document.getElementById('log-number-wrap').style.display = 'block';
+    document.getElementById('log-value').focus();
+  });
+
+  // Switch links — time goals
+  document.getElementById('log-switch-to-pos-time').addEventListener('click', () => {
+    document.getElementById('log-mode-input').value = 'position';
+    document.getElementById('log-time-wrap').style.display = 'none';
+    document.getElementById('log-pos-time-section').style.display = 'block';
+    document.getElementById('log-pos-h').focus();
+  });
+  document.getElementById('log-switch-to-duration').addEventListener('click', () => {
+    document.getElementById('log-mode-input').value = 'duration';
+    document.getElementById('log-pos-time-section').style.display = 'none';
+    document.getElementById('log-time-wrap').style.display = 'block';
+    document.getElementById('log-h').focus();
+  });
+
+  // Live preview for position inputs
+  ['log-pos-value','log-pos-h','log-pos-m','log-pos-s'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.addEventListener('input', updatePositionPreview);
   });
@@ -604,26 +607,25 @@ export function initLogForm() {
     const form = e.target;
     const goalId = form.dataset.goalId;
     const unit = form.dataset.unit;
-    const isTime = isTimeUnit(unit);
-    const logMode = form.dataset.logMode || 'duration';
+    const isTime = form.dataset.isTime === 'true';
+    const mode = document.getElementById('log-mode-input').value;
 
     let value;
     let positionBased = false;
-    if (isTime && logMode === 'fromto') {
-      // Position-based: just parse where they are now
-      const posSeconds = parseTimeToSeconds(
-        document.getElementById('log-pos-h').value,
-        document.getElementById('log-pos-m').value,
-        document.getElementById('log-pos-s').value
-      );
-      if (!posSeconds) { showToast('Enter where you stopped in the content', 'error'); return; }
+
+    if (mode === 'position') {
       positionBased = true;
-      value = posSeconds; // will be used as opts.position
-    } else if (!isTime && logMode === 'fromto') {
-      const posVal = parseFloat(document.getElementById('log-pos-value').value);
-      if (!posVal || posVal <= 0) { showToast('Enter where you stopped', 'error'); return; }
-      positionBased = true;
-      value = posVal;
+      if (isTime) {
+        value = parseTimeToSeconds(
+          document.getElementById('log-pos-h').value,
+          document.getElementById('log-pos-m').value,
+          document.getElementById('log-pos-s').value
+        );
+        if (!value) { showToast('Enter where you stopped in the content', 'error'); return; }
+      } else {
+        value = parseFloat(document.getElementById('log-pos-value').value);
+        if (!value || value <= 0) { showToast('Enter where you stopped', 'error'); return; }
+      }
     } else if (isTime) {
       value = parseTimeToSeconds(
         document.getElementById('log-h').value,
@@ -644,7 +646,7 @@ export function initLogForm() {
       : logProgress(goalId, value);
     if (!updated) { showToast('Something went wrong', 'error'); return; }
     if (updated._positionError) {
-      showToast('Position must be greater than where you left off', 'error');
+      showToast('Must be further than where you left off', 'error');
       return;
     }
 
@@ -652,6 +654,7 @@ export function initLogForm() {
     closeModal('modal-log');
     renderActiveGoals();
     renderCompletedGoals();
+    renderDailyWidget();
 
     if (wasCompleted && updated.completedAt &&
         new Date(updated.completedAt) > new Date(Date.now() - 5000)) {
@@ -666,37 +669,35 @@ export function initLogForm() {
 
 function updatePositionPreview() {
   const form = document.getElementById('log-form');
-  const unit = form.dataset.unit;
-  const isTime = isTimeUnit(unit);
+  const isTime = form.dataset.isTime === 'true';
   const goalId = form.dataset.goalId;
   const goals = getGoals();
   const goal = goals.find(g => g.id === goalId);
   if (!goal) return;
 
-  let posSeconds;
+  let posVal;
+  const previewId = isTime ? 'log-fromto-preview-time' : 'log-fromto-preview-num';
   if (isTime) {
-    posSeconds = parseTimeToSeconds(
+    posVal = parseTimeToSeconds(
       document.getElementById('log-pos-h').value,
       document.getElementById('log-pos-m').value,
       document.getElementById('log-pos-s').value
     );
   } else {
-    posSeconds = parseFloat(document.getElementById('log-pos-value').value);
+    posVal = parseFloat(document.getElementById('log-pos-value').value);
   }
   const from = goal.lastPosition != null ? goal.lastPosition : (goal.startingProgress || 0);
-  const delta = posSeconds - from;
-  const el = document.getElementById('log-fromto-preview');
-  if (!el) return;
-  if (!posSeconds) { el.textContent = ''; return; }
+  const delta = posVal - from;
+  const el = document.getElementById(previewId);
+  if (!el || !posVal) { if (el) el.textContent = ''; return; }
   if (delta <= 0) {
     el.style.color = 'var(--danger)';
     el.textContent = '⚠ Must be after your last position';
   } else {
     el.style.color = 'var(--success)';
-    el.textContent = `≈ Will log ${isTime ? formatSeconds(delta) : delta + ' ' + unit}`;
+    el.textContent = `≈ Will log ${isTime ? formatSeconds(delta) : delta + ' ' + goal.unit}`;
   }
 }
-
 
 
 // ── Daily Focus Banner (sticky, non-dismissable) ──────────────

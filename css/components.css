@@ -895,3 +895,21 @@
   font-family: var(--font-mono, monospace);
 }
 
+/* Small inline switch link under log inputs */
+.log-switch-link {
+  display: inline-block;
+  margin-top: 8px;
+  font-size: 0.75rem;
+  color: var(--purple-400);
+  background: transparent;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  opacity: 0.8;
+  transition: opacity var(--t-fast);
+}
+.log-switch-link:hover { opacity: 1; }
+
+
