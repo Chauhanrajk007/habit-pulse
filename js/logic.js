@@ -66,6 +66,7 @@ export function createGoal({ title, unit, target, startingProgress, color, daily
     target: isHabit ? Infinity : Number(target),
     startingProgress: Number(startingProgress) || 0,
     completed: Number(startingProgress) || 0,
+    lastPosition: Number(startingProgress) || 0, // tracks where user is in content
     history: [],
     createdAt: new Date().toISOString(),
     isCompleted: false,
@@ -77,12 +78,25 @@ export function createGoal({ title, unit, target, startingProgress, color, daily
   return goal;
 }
 
-export function logProgress(goalId, rawValue) {
+// Pass rawValue for duration logging, or { position } for position-based logging
+export function logProgress(goalId, rawValue, opts = {}) {
   const goals = getGoals();
   const goal = goals.find(g => g.id === goalId);
   if (!goal) return null;
-  const value = Number(rawValue);
-  if (!value || isNaN(value)) return null;
+
+  let value;
+  if (opts.position !== undefined) {
+    // Position-based: log the delta from lastPosition
+    const from = goal.lastPosition || goal.startingProgress || 0;
+    value = Number(opts.position) - from;
+    if (value <= 0) return { ...goal, _positionError: true };
+    goal.lastPosition = Number(opts.position);
+  } else {
+    value = Number(rawValue);
+    if (!value || isNaN(value)) return null;
+    goal.lastPosition = (goal.lastPosition || goal.startingProgress || 0) + value;
+  }
+
   const today = todayStr();
   const existing = goal.history.find(h => h.date === today);
   if (existing) existing.value += value;

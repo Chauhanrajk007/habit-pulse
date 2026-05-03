@@ -540,8 +540,25 @@ export function openLogModal(goalId) {
   document.getElementById('log-mode-fromto').classList.remove('active');
   document.getElementById('log-fromto-preview').textContent = '';
 
+  // Populate "previously at" and configure position input type
+  const lastPos = goal.lastPosition != null ? goal.lastPosition : (goal.startingProgress || 0);
+  const prevEl = document.getElementById('log-prev-display');
+  const uptoLabel = document.getElementById('log-upto-label');
+  if (isTime) {
+    prevEl.textContent = `▶ Previously at: ${formatSeconds(lastPos)}`;
+    uptoLabel.textContent = 'Up to — (position in content)';
+    document.getElementById('log-pos-time-wrap').style.display = '';
+    document.getElementById('log-pos-number-wrap').style.display = 'none';
+  } else {
+    prevEl.textContent = `▶ Previously at: ${lastPos} ${goal.unit}`;
+    uptoLabel.textContent = `Up to — (${goal.unit} number)`;
+    document.getElementById('log-pos-time-wrap').style.display = 'none';
+    document.getElementById('log-pos-number-wrap').style.display = '';
+  }
+
   // Clear all fields
-  ['log-value', 'log-h', 'log-m', 'log-s', 'log-from-time', 'log-to-time'].forEach(id => {
+  ['log-value', 'log-h', 'log-m', 'log-s',
+   'log-pos-h', 'log-pos-m', 'log-pos-s', 'log-pos-value'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.value = '';
   });
@@ -552,8 +569,9 @@ export function openLogModal(goalId) {
   openModal('modal-log');
 }
 
+
 export function initLogForm() {
-  // Duration / From→To tab toggle
+  // Duration / Up-to tab toggle
   document.getElementById('log-mode-duration').addEventListener('click', () => {
     document.getElementById('log-form').dataset.logMode = 'duration';
     document.getElementById('log-duration-inputs').style.display = '';
@@ -568,9 +586,10 @@ export function initLogForm() {
     document.getElementById('log-mode-duration').classList.remove('active');
     document.getElementById('log-mode-fromto').classList.add('active');
   });
-  // Live preview
-  ['log-from-time', 'log-to-time'].forEach(id => {
-    document.getElementById(id).addEventListener('change', updateFromToPreview);
+  // Live preview for position mode
+  ['log-pos-h','log-pos-m','log-pos-s','log-pos-value'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('input', updatePositionPreview);
   });
 
   document.getElementById('log-form').addEventListener('submit', e => {
@@ -582,9 +601,22 @@ export function initLogForm() {
     const logMode = form.dataset.logMode || 'duration';
 
     let value;
+    let positionBased = false;
     if (isTime && logMode === 'fromto') {
-      value = calcFromToSeconds();
-      if (!value || value <= 0) { showToast('Invalid time range — check start/end times', 'error'); return; }
+      // Position-based: just parse where they are now
+      const posSeconds = parseTimeToSeconds(
+        document.getElementById('log-pos-h').value,
+        document.getElementById('log-pos-m').value,
+        document.getElementById('log-pos-s').value
+      );
+      if (!posSeconds) { showToast('Enter where you stopped in the content', 'error'); return; }
+      positionBased = true;
+      value = posSeconds; // will be used as opts.position
+    } else if (!isTime && logMode === 'fromto') {
+      const posVal = parseFloat(document.getElementById('log-pos-value').value);
+      if (!posVal || posVal <= 0) { showToast('Enter where you stopped', 'error'); return; }
+      positionBased = true;
+      value = posVal;
     } else if (isTime) {
       value = parseTimeToSeconds(
         document.getElementById('log-h').value,
@@ -600,8 +632,14 @@ export function initLogForm() {
       return;
     }
 
-    const updated = logProgress(goalId, value);
+    const updated = positionBased
+      ? logProgress(goalId, null, { position: value })
+      : logProgress(goalId, value);
     if (!updated) { showToast('Something went wrong', 'error'); return; }
+    if (updated._positionError) {
+      showToast('Position must be greater than where you left off', 'error');
+      return;
+    }
 
     const wasCompleted = updated.isCompleted;
     closeModal('modal-log');
@@ -619,20 +657,37 @@ export function initLogForm() {
   });
 }
 
-function calcFromToSeconds() {
-  const fromVal = document.getElementById('log-from-time').value;
-  const toVal   = document.getElementById('log-to-time').value;
-  if (!fromVal || !toVal) return 0;
-  const toSecs = t => { const p = t.split(':').map(Number); return p[0]*3600 + p[1]*60 + (p[2]||0); };
-  let diff = toSecs(toVal) - toSecs(fromVal);
-  if (diff < 0) diff += 86400; // midnight crossing
-  return diff;
-}
+function updatePositionPreview() {
+  const form = document.getElementById('log-form');
+  const unit = form.dataset.unit;
+  const isTime = isTimeUnit(unit);
+  const goalId = form.dataset.goalId;
+  const goals = getGoals();
+  const goal = goals.find(g => g.id === goalId);
+  if (!goal) return;
 
-function updateFromToPreview() {
-  const secs = calcFromToSeconds();
+  let posSeconds;
+  if (isTime) {
+    posSeconds = parseTimeToSeconds(
+      document.getElementById('log-pos-h').value,
+      document.getElementById('log-pos-m').value,
+      document.getElementById('log-pos-s').value
+    );
+  } else {
+    posSeconds = parseFloat(document.getElementById('log-pos-value').value);
+  }
+  const from = goal.lastPosition != null ? goal.lastPosition : (goal.startingProgress || 0);
+  const delta = posSeconds - from;
   const el = document.getElementById('log-fromto-preview');
-  if (el) el.textContent = secs > 0 ? `≈ ${formatSeconds(secs)} will be logged` : '';
+  if (!el) return;
+  if (!posSeconds) { el.textContent = ''; return; }
+  if (delta <= 0) {
+    el.style.color = 'var(--danger)';
+    el.textContent = '⚠ Must be after your last position';
+  } else {
+    el.style.color = 'var(--success)';
+    el.textContent = `≈ Will log ${isTime ? formatSeconds(delta) : delta + ' ' + unit}`;
+  }
 }
 
 

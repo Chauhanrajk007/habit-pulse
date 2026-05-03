@@ -876,8 +876,22 @@
   transition: all var(--t-fast);
 }
 .log-mode-btn:hover { border-color: var(--purple-500); color: var(--text-secondary); }
+.log-mode-btn:active { transform: scale(0.9); }
 .log-mode-btn.active {
   border-color: var(--purple-500);
   background: rgba(124,58,237,0.12);
   color: var(--purple-400);
 }
+
+/* Previously-at indicator in position log mode */
+.log-position-prev {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--r-md);
+  padding: 7px 12px;
+  margin-bottom: 10px;
+  font-family: var(--font-mono, monospace);
+}
+

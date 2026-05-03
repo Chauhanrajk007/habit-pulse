@@ -357,7 +357,7 @@
         <!-- Tab row -->
         <div class="log-mode-row">
           <button type="button" class="log-mode-btn active" id="log-mode-duration">⏱ Duration</button>
-          <button type="button" class="log-mode-btn" id="log-mode-fromto">📍 From → To</button>
+          <button type="button" class="log-mode-btn" id="log-mode-fromto">📍 Up to</button>
         </div>
         <!-- Duration inputs -->
         <div id="log-duration-inputs">
@@ -370,17 +370,19 @@
         </div>
         <!-- From → To inputs -->
         <div id="log-fromto-inputs" style="display:none">
-          <label class="form-label">Watched from → to</label>
-          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-            <div style="flex:1;min-width:120px">
-              <div style="font-size:0.72rem;color:var(--text-muted);margin-bottom:4px">Start</div>
-              <input type="time" id="log-from-time" step="1" class="form-input" />
+          <div class="log-position-prev" id="log-prev-display"></div>
+          <label class="form-label" id="log-upto-label">Up to —</label>
+          <!-- Time position input -->
+          <div id="log-pos-time-wrap" style="display:none">
+            <div class="time-input-group">
+              <div class="time-input-wrap"><label>Hours</label><input type="number" id="log-pos-h" min="0" placeholder="0" /></div>
+              <div class="time-input-wrap"><label>Minutes</label><input type="number" id="log-pos-m" min="0" max="59" placeholder="0" /></div>
+              <div class="time-input-wrap"><label>Seconds</label><input type="number" id="log-pos-s" min="0" max="59" placeholder="0" /></div>
             </div>
-            <div style="color:var(--text-muted);font-size:1.2rem;padding-top:14px">→</div>
-            <div style="flex:1;min-width:120px">
-              <div style="font-size:0.72rem;color:var(--text-muted);margin-bottom:4px">End</div>
-              <input type="time" id="log-to-time" step="1" class="form-input" />
-            </div>
+          </div>
+          <!-- Number position input -->
+          <div id="log-pos-number-wrap">
+            <input type="number" id="log-pos-value" class="form-input" placeholder="e.g. 8" min="0" step="any" />
           </div>
           <div id="log-fromto-preview" style="margin-top:8px;font-size:0.8rem;color:var(--text-muted)"></div>
         </div>
