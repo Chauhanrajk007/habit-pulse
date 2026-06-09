@@ -228,7 +228,7 @@ export function getStartDate(goal) {
  */
 export function computeAvgDaily(goal) {
   if (!goal.history.length) return 0;
-  const total = goal.history.reduce((s, h) => s + h.value, 0) + (goal.startingProgress || 0);
+  const total = goal.history.reduce((s, h) => s + h.value, 0);
   if (total <= 0) return 0;
   const startDate = getStartDate(goal);
   const totalDays = daysBetween(startDate, todayStr());
@@ -401,9 +401,6 @@ export function getHabitDeficit(goal) {
     cur = shiftDate(cur, 1);
   }
   
-  if (goal.startingProgress) {
-    deficit -= goal.startingProgress;
-  }
   return {
     raw: deficit,           // positive = behind, negative = ahead
     isAhead: deficit <= 0,
