@@ -189,8 +189,8 @@ export function getStats(goal) {
     ? 0
     : Math.max(0, goal.target - goal.completed);
   const streak = computeStreak(goal.history);
-  // FIXED: pass createdAt so avg uses total calendar days, not just logged days
-  const avgDaily = computeAvgDaily(goal.history, goal.createdAt);
+  // FIXED: pass goal so avg uses total calendar days from earliest known date
+  const avgDaily = computeAvgDaily(goal);
   const daysLeft = avgDaily > 0 && goal.target !== Infinity
     ? Math.ceil(remaining / avgDaily)
     : null;
@@ -211,21 +211,27 @@ export function computeStreak(history) {
   return streak;
 }
 
+export function getStartDate(goal) {
+  let createdDate = (goal.createdAt || new Date().toISOString()).slice(0, 10);
+  if (goal.history && goal.history.length > 0) {
+    const earliestLog = goal.history.map(h => h.date).sort()[0];
+    if (earliestLog < createdDate) {
+      createdDate = earliestLog;
+    }
+  }
+  return createdDate;
+}
+
 /**
  * FIXED: Compute average daily progress using TOTAL calendar days since
- * goal creation, not just the count of days with logs.
- *
- * This ensures predictions are realistic. If someone created a goal 10 days
- * ago but only logged on 2 of those days, the average reflects the actual
- * pace (total / 10) rather than the inflated (total / 2).
- *
- * Works retroactively for all existing goals since createdAt is already stored.
+ * goal creation (or earliest log), not just the count of days with logs.
  */
-export function computeAvgDaily(history, createdAt) {
-  if (!history.length) return 0;
-  const total = history.reduce((s, h) => s + h.value, 0);
+export function computeAvgDaily(goal) {
+  if (!goal.history.length) return 0;
+  const total = goal.history.reduce((s, h) => s + h.value, 0) + (goal.startingProgress || 0);
   if (total <= 0) return 0;
-  const totalDays = daysBetween(createdAt, todayStr());
+  const startDate = getStartDate(goal);
+  const totalDays = daysBetween(startDate, todayStr());
   if (totalDays <= 0) return total; // created today — return total as avg
   return total / totalDays;
 }
@@ -384,7 +390,7 @@ export function resetGoalProgress(goalId) {
 // Example: target 5/day, days [4, 6, 4] → deficit = 1+(-1)+1 = 1 behind
 export function getHabitDeficit(goal) {
   if (!goal.dailyTarget || goal.dailyTarget <= 0) return null;
-  const createdDate = (goal.createdAt || new Date().toISOString()).slice(0, 10);
+  const createdDate = getStartDate(goal);
   const today = todayStr();
   let deficit = 0;
   let cur = createdDate;
@@ -393,6 +399,10 @@ export function getHabitDeficit(goal) {
     const logged = entry ? entry.value : 0;
     deficit += (goal.dailyTarget - logged); // positive = behind that day
     cur = shiftDate(cur, 1);
+  }
+  
+  if (goal.startingProgress) {
+    deficit -= goal.startingProgress;
   }
   return {
     raw: deficit,           // positive = behind, negative = ahead
