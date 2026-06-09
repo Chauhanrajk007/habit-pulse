@@ -880,12 +880,15 @@ export function openDetailModal(goalId) {
   if (isHabit) {
     let statusText = 'On Track';
     let statusColor = 'inherit';
-    if (stats.deficit > 0) {
-      statusText = `${formatValue(stats.deficit, goal.unit)} Ahead`;
-      statusColor = 'var(--success)';
-    } else if (stats.deficit < 0) {
-      statusText = `${formatValue(Math.abs(stats.deficit), goal.unit)} Behind`;
-      statusColor = 'var(--danger)';
+    const deficitObj = getHabitDeficit(goal);
+    if (deficitObj && !deficitObj.isOnTrack) {
+      if (deficitObj.isAhead) {
+        statusText = `${formatValue(deficitObj.value, goal.unit)} Ahead`;
+        statusColor = 'var(--success)';
+      } else {
+        statusText = `${formatValue(deficitObj.value, goal.unit)} Behind`;
+        statusColor = 'var(--danger)';
+      }
     }
     const statEl = document.getElementById('detail-habit-status');
     statEl.textContent = statusText;
