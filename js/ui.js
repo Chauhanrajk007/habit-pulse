@@ -119,8 +119,8 @@ function buildGoalCard(goal, completed = false) {
   const actionsHtml = !completed ? `
     <div class="goal-actions">
       <button class="btn-log" data-log="${goal.id}" id="btn-log-${goal.id}">+ Log Progress</button>
+      <button class="btn-icon" data-undo="${goal.id}" title="Undo Last">↩️</button>
       <button class="btn-icon" data-detail="${goal.id}" title="Details">📊</button>
-      <button class="btn-icon" data-edit="${goal.id}" title="Edit">✏️</button>
     </div>` : `
     <div class="goal-actions">
       <button class="btn-icon" data-detail="${goal.id}" title="Details" style="flex:1">📊 View Stats</button>
@@ -193,8 +193,8 @@ function buildHabitCard(goal) {
     </div>
     <div class="goal-actions">
       <button class="btn-log" data-log="${goal.id}" id="btn-log-${goal.id}">+ Log</button>
+      <button class="btn-icon" data-undo="${goal.id}" title="Undo Last">↩️</button>
       <button class="btn-icon" data-detail="${goal.id}" title="Details">📊</button>
-      <button class="btn-icon" data-edit="${goal.id}" title="Edit">✏️</button>
     </div>`;
   return card;
 }
@@ -342,10 +342,32 @@ function bindGoalCardEvents(container) {
   container.addEventListener('click', e => {
     const logBtn = e.target.closest('[data-log]');
     const detailBtn = e.target.closest('[data-detail]');
-    const editBtn = e.target.closest('[data-edit]');
+    const undoBtn = e.target.closest('[data-undo]');
+    
     if (logBtn) openLogModal(logBtn.dataset.log);
     if (detailBtn) openDetailModal(detailBtn.dataset.detail);
-    if (editBtn) openEditModal(editBtn.dataset.edit);
+    if (undoBtn) {
+      const gId = undoBtn.dataset.undo;
+      const undoInfo = getLastUndoInfo();
+      if (!undoInfo || undoInfo.goalId !== gId) {
+        showToast('No recent entry to undo for this goal', 'warning');
+        return;
+      }
+      const goal = getGoals().find(g => g.id === gId);
+      showConfirm({
+        icon: '↩️', title: 'Undo Last Entry',
+        msg: `Roll back ${formatValue(undoInfo.value, undoInfo.unit)} from "${goal.title}"?`,
+        confirmText: 'Undo',
+        onConfirm: () => {
+          const undone = undoLastLog();
+          if (undone) {
+            renderActiveGoals();
+            renderCompletedGoals();
+            showToast('Entry rolled back! ↩️', 'info');
+          }
+        }
+      });
+    }
   });
 }
 
@@ -848,7 +870,7 @@ export function openDetailModal(goalId) {
     ? stats.daysLeft + ' days'
     : stats.remaining === 0 ? 'Done!' : 'N/A';
 
-  const isHabit = goal.target === Infinity;
+  const isHabit = goal.type === 'habit';
   document.getElementById('card-target').style.display = isHabit ? 'none' : '';
   document.getElementById('card-remaining').style.display = isHabit ? 'none' : '';
   document.getElementById('card-pct').style.display = isHabit ? 'none' : '';
