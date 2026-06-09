@@ -34,6 +34,7 @@ function commonScaleOpts() {
     y: {
       grid: { color: gridColor, drawBorder: false },
       beginAtZero: true,
+      grace: '5%',
       border: { display: false },
       ticks: { color: tickColor, font: { size: 11, family: fontFamily } },
     },
@@ -63,7 +64,7 @@ function destroyChart(id) {
 // ── Daily Line Chart ──────────────────────────────────────────
 // timeDisplay: 'sec'|'min'|'hr'|null  (null = not a time unit)
 
-export function renderDailyLineChart(canvasId, dailyData, color = '#7c3aed', unit = '', timeDisplay = null) {
+export function renderDailyLineChart(canvasId, dailyData, color = '#7c3aed', unit = '', timeDisplay = null, expectedDaily = null) {
   destroyChart(canvasId);
   const ctx = document.getElementById(canvasId);
   if (!ctx) return;
@@ -83,33 +84,62 @@ export function renderDailyLineChart(canvasId, dailyData, color = '#7c3aed', uni
   gradient.addColorStop(0.7, color + '10');
   gradient.addColorStop(1, color + '00');
 
+  const chartData = {
+    labels,
+    datasets: [{
+      label: 'Actual',
+      data,
+      borderColor: color,
+      backgroundColor: gradient,
+      borderWidth: 2.5,
+      fill: 'origin',
+      tension: 0.4,
+      pointBackgroundColor: color,
+      pointBorderColor: 'transparent',
+      pointRadius: dailyData.length > 7 ? 0 : 3,
+      pointHoverRadius: 7,
+      pointHoverBackgroundColor: '#fff',
+      pointHoverBorderColor: color,
+      pointHoverBorderWidth: 3,
+    }],
+  };
+
+  if (expectedDaily) {
+    const expectedVal = timeDisplay ? convertForDisplay(expectedDaily, timeDisplay) : expectedDaily;
+    chartData.datasets.push({
+      label: 'Expected Pace',
+      data: labels.map(() => expectedVal),
+      borderColor: color + '55',
+      backgroundColor: 'transparent',
+      borderWidth: 1.5,
+      borderDash: [7, 4],
+      fill: false,
+      tension: 0,
+      pointRadius: 0,
+      pointHoverRadius: 4,
+      pointHoverBackgroundColor: color,
+    });
+  }
+
   chartRegistry[canvasId] = new Chart(ctx, {
     type: 'line',
-    data: {
-      labels,
-      datasets: [{
-        data,
-        borderColor: color,
-        backgroundColor: gradient,
-        borderWidth: 2.5,
-        fill: true,
-        tension: 0.4,
-        pointBackgroundColor: color,
-        pointBorderColor: 'transparent',
-        pointRadius: dailyData.length > 7 ? 0 : 3,
-        pointHoverRadius: 7,
-        pointHoverBackgroundColor: '#fff',
-        pointHoverBorderColor: color,
-        pointHoverBorderWidth: 3,
-      }],
-    },
+    data: chartData,
     options: {
       responsive: true,
       maintainAspectRatio: false,
       interaction: { intersect: false, mode: 'index' },
       animation: { duration: 800, easing: 'easeOutQuart' },
       plugins: {
-        legend: { display: false },
+        legend: {
+          display: !!expectedDaily,
+          labels: {
+            color: 'rgba(160,160,192,0.85)',
+            font: { size: 11, family: fontFamily },
+            usePointStyle: true,
+            pointStyleWidth: 14,
+            padding: 12,
+          },
+        },
         tooltip: {
           ...tooltipStyle(color + '50'),
           callbacks: {
@@ -347,9 +377,9 @@ export function renderDonutChart(canvasId, active, completed) {
         backgroundColor: ['#8b5cf6', '#10b981'],
         hoverBackgroundColor: ['#a78bfa', '#34d399'],
         borderColor: ['rgba(139,92,246,0.3)', 'rgba(16,185,129,0.3)'],
-        borderWidth: 2,
+        borderWidth: 0,
         hoverOffset: 12,
-        spacing: 4,
+        spacing: 0,
       }],
     },
     options: {

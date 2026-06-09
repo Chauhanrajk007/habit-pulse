@@ -333,7 +333,7 @@ function renderPerGoalCharts(goal, range, timeDisplay) {
   const timeDsp   = goal.isTime ? td : null;
 
   document.getElementById('per-goal-chart-title').textContent = goal.title;
-  renderDailyLineChart('chart-per-goal-daily',  daily,  goal.color, unitLabel, timeDsp);
+  renderDailyLineChart('chart-per-goal-daily',  daily,  goal.color, unitLabel, timeDsp, goal.dailyTarget);
   renderWeeklyBarChart('chart-per-goal-weekly', weekly, goal.color, unitLabel, timeDsp);
 }
 
@@ -848,6 +848,28 @@ export function openDetailModal(goalId) {
     ? stats.daysLeft + ' days'
     : stats.remaining === 0 ? 'Done!' : 'N/A';
 
+  const isHabit = goal.target === Infinity;
+  document.getElementById('card-target').style.display = isHabit ? 'none' : 'flex';
+  document.getElementById('card-remaining').style.display = isHabit ? 'none' : 'flex';
+  document.getElementById('card-pct').style.display = isHabit ? 'none' : 'flex';
+  document.getElementById('card-days-left').style.display = isHabit ? 'none' : 'flex';
+  document.getElementById('card-habit-status').style.display = isHabit ? 'flex' : 'none';
+
+  if (isHabit) {
+    let statusText = 'On Track';
+    let statusColor = 'inherit';
+    if (stats.deficit > 0) {
+      statusText = `${formatValue(stats.deficit, goal.unit)} Ahead`;
+      statusColor = 'var(--success)';
+    } else if (stats.deficit < 0) {
+      statusText = `${formatValue(Math.abs(stats.deficit), goal.unit)} Behind`;
+      statusColor = 'var(--danger)';
+    }
+    const statEl = document.getElementById('detail-habit-status');
+    statEl.textContent = statusText;
+    statEl.style.color = statusColor;
+  }
+
   // Progress bar
   const bar = document.getElementById('detail-progress-fill');
   bar.style.width = '0%';
@@ -879,7 +901,7 @@ export function openDetailModal(goalId) {
     } else {
       const daily  = getDailyData(goal.history, r);
       const weekly = getWeeklyData(goal.history, r === 'all' ? 52 : Math.ceil((r === 7 ? 7 : r) / 7));
-      renderDailyLineChart('chart-detail-daily',  daily,  goal.color, unitLabel, td);
+      renderDailyLineChart('chart-detail-daily',  daily,  goal.color, unitLabel, td, goal.dailyTarget);
       renderWeeklyBarChart('chart-detail-weekly', weekly, goal.color, unitLabel, td);
       const wrapWeekly = document.getElementById('chart-detail-weekly')?.closest('.chart-wrap');
       if (wrapWeekly) wrapWeekly.style.opacity = '1';
