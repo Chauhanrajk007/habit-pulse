@@ -9,7 +9,8 @@ import {
   createGoal, logProgress, getStats, formatValue, formatSeconds,
   isTimeUnit, parseTimeToSeconds, resetGoalProgress, getDailyData,
   getWeeklyData, getGlobalAnalytics, TIME_UNIT, convertTimeValue, getTimeUnitLabel,
-  getTodayLogged, getCumulativeData, getExpectedCumulative, getHabitDeficit
+  getTodayLogged, getCumulativeData, getExpectedCumulative, getHabitDeficit,
+  undoLastLog, getLastUndoInfo, clearUndo
 } from './logic.js';
 import {
   renderDailyLineChart, renderWeeklyBarChart,
@@ -29,17 +30,38 @@ const chartState = {
 };
 
 // ── Toast ─────────────────────────────────────────────────────
-export function showToast(msg, type = 'info') {
+export function showToast(msg, type = 'info', opts = {}) {
   const container = document.getElementById('toast-container');
   const t = document.createElement('div');
   t.className = `toast ${type}`;
-  const icons = { success: '✅', error: '❌', info: 'ℹ️', warning: '⚠️' };
-  t.innerHTML = `<span>${icons[type] || '🔔'}</span><span>${msg}</span>`;
-  container.appendChild(t);
-  setTimeout(() => {
-    t.classList.add('out');
-    setTimeout(() => t.remove(), 300);
-  }, 3000);
+  const icons = { success: '✅', error: '❌', info: 'ℹ️', warning: '⚠️', undo: '↩️' };
+  
+  if (opts.undoAction) {
+    // Undo toast with action button
+    t.innerHTML = `
+      <span>${icons[type] || '🔔'}</span>
+      <span style="flex:1">${msg}</span>
+      <button class="toast-undo-btn" id="toast-undo-btn">Undo</button>`;
+    t.querySelector('.toast-undo-btn').addEventListener('click', (e) => {
+      e.stopPropagation();
+      opts.undoAction();
+      t.classList.add('out');
+      setTimeout(() => t.remove(), 300);
+    });
+    // Undo toast stays for 8 seconds
+    container.appendChild(t);
+    setTimeout(() => {
+      t.classList.add('out');
+      setTimeout(() => t.remove(), 300);
+    }, 8000);
+  } else {
+    t.innerHTML = `<span>${icons[type] || '🔔'}</span><span>${msg}</span>`;
+    container.appendChild(t);
+    setTimeout(() => {
+      t.classList.add('out');
+      setTimeout(() => t.remove(), 300);
+    }, 3000);
+  }
 }
 
 // ── Confirm ───────────────────────────────────────────────────
@@ -182,6 +204,10 @@ export function renderActiveGoals() {
   const goals = getGoals().filter(g => !g.isCompleted);
   const list = document.getElementById('active-goal-list');
   list.innerHTML = '';
+
+  // Update count badge
+  const badge = document.getElementById('active-count-badge');
+  if (badge) badge.textContent = goals.length;
 
   // Toggle FAB pulse
   document.getElementById('fab-add').classList.toggle('pulse', goals.length === 0);
@@ -662,7 +688,22 @@ export function initLogForm() {
       showToast(`🎉 "${updated.title}" completed!`, 'success');
       setTimeout(() => switchTab('completed'), 1200);
     } else {
-      showToast(`Logged ${isTime ? formatSeconds(value) : value + ' ' + unit}!`, 'success');
+      // Show undo toast instead of plain toast
+      const loggedStr = isTime ? formatSeconds(positionBased ? (updated.completed - (getLastUndoInfo()?.value || 0) + (getLastUndoInfo()?.value || 0)) : value) : '';
+      const displayVal = isTime ? formatSeconds(getLastUndoInfo()?.value || value) : (getLastUndoInfo()?.value || value) + ' ' + unit;
+      showToast(`Logged ${displayVal}`, 'success', {
+        undoAction: () => {
+          const undone = undoLastLog();
+          if (undone) {
+            renderActiveGoals();
+            renderCompletedGoals();
+            renderDailyWidget();
+            showToast('Entry rolled back! ↩️', 'info');
+          } else {
+            showToast('Nothing to undo', 'warning');
+          }
+        }
+      });
     }
   });
 }
@@ -797,13 +838,13 @@ export function openDetailModal(goalId) {
   document.getElementById('detail-color-dot').style.backgroundColor = goal.color;
   document.getElementById('detail-title').textContent = goal.title;
   document.getElementById('detail-completed').textContent = formatValue(goal.completed, goal.unit);
-  document.getElementById('detail-target').textContent = formatValue(goal.target, goal.unit);
-  document.getElementById('detail-remaining').textContent = formatValue(stats.remaining, goal.unit);
+  document.getElementById('detail-target').textContent = goal.target === Infinity ? '∞' : formatValue(goal.target, goal.unit);
+  document.getElementById('detail-remaining').textContent = goal.target === Infinity ? '—' : formatValue(stats.remaining, goal.unit);
   document.getElementById('detail-pct').textContent = stats.percent + '%';
   document.getElementById('detail-streak').textContent = stats.streak + ' days';
   document.getElementById('detail-avg').textContent = isTime
     ? formatSeconds(Math.round(stats.avgDaily))
-    : Math.round(stats.avgDaily) + ' ' + goal.unit + '/day';
+    : Math.round(stats.avgDaily * 10) / 10 + ' ' + goal.unit + '/day';
   document.getElementById('detail-days-left').textContent = stats.daysLeft
     ? stats.daysLeft + ' days'
     : stats.remaining === 0 ? 'Done!' : 'N/A';
@@ -864,6 +905,28 @@ export function openDetailModal(goalId) {
   document.getElementById('detail-btn-edit').onclick = () => {
     closeModal('modal-detail');
     setTimeout(() => openEditModal(goalId), 200);
+  };
+  // Undo button in detail modal
+  document.getElementById('detail-btn-undo').onclick = () => {
+    const undoInfo = getLastUndoInfo();
+    if (!undoInfo || undoInfo.goalId !== goalId) {
+      showToast('No recent entry to undo for this goal', 'warning');
+      return;
+    }
+    showConfirm({
+      icon: '↩️', title: 'Undo Last Entry',
+      msg: `Roll back ${formatValue(undoInfo.value, undoInfo.unit)} from "${goal.title}"?`,
+      confirmText: 'Undo',
+      onConfirm: () => {
+        const undone = undoLastLog();
+        if (undone) {
+          closeModal('modal-detail');
+          renderActiveGoals();
+          renderCompletedGoals();
+          showToast('Entry rolled back! ↩️', 'info');
+        }
+      }
+    });
   };
   document.getElementById('detail-btn-reset').onclick = () => {
     closeModal('modal-detail');

@@ -78,11 +78,76 @@ export function createGoal({ title, unit, target, startingProgress, color, daily
   return goal;
 }
 
+// ── Undo / Rollback System ────────────────────────────────────
+// Stores the last log action so it can be reversed (single undo)
+let _lastUndo = null;
+
+/**
+ * Clears undo state (called on page transitions, new logs, etc.)
+ */
+export function clearUndo() { _lastUndo = null; }
+
+/**
+ * Returns info about the available undo, or null if none.
+ */
+export function getLastUndoInfo() {
+  if (!_lastUndo) return null;
+  // Expire undo after 30 seconds
+  if (Date.now() - _lastUndo.timestamp > 30000) {
+    _lastUndo = null;
+    return null;
+  }
+  return {
+    goalId: _lastUndo.goalId,
+    goalTitle: _lastUndo.goalTitle,
+    value: _lastUndo.value,
+    unit: _lastUndo.unit,
+  };
+}
+
+/**
+ * Undo the last log entry. Returns the updated goal or null.
+ */
+export function undoLastLog() {
+  if (!_lastUndo) return null;
+  const info = _lastUndo;
+  _lastUndo = null; // consume the undo
+
+  const goals = getGoals();
+  const goal = goals.find(g => g.id === info.goalId);
+  if (!goal) return null;
+
+  // Restore from snapshot
+  goal.completed = info.prevCompleted;
+  goal.lastPosition = info.prevLastPosition;
+  goal.isCompleted = info.prevIsCompleted;
+  if (info.prevIsCompleted === false) {
+    delete goal.completedAt;
+  }
+
+  // Restore history entry
+  const historyEntry = goal.history.find(h => h.date === info.date);
+  if (historyEntry) {
+    historyEntry.value -= info.value;
+    if (historyEntry.value <= 0) {
+      goal.history = goal.history.filter(h => h.date !== info.date);
+    }
+  }
+
+  upsertGoal(goal);
+  return goal;
+}
+
 // Pass rawValue for duration logging, or { position } for position-based logging
 export function logProgress(goalId, rawValue, opts = {}) {
   const goals = getGoals();
   const goal = goals.find(g => g.id === goalId);
   if (!goal) return null;
+
+  // Save pre-log snapshot for undo
+  const prevCompleted = goal.completed;
+  const prevLastPosition = goal.lastPosition;
+  const prevIsCompleted = goal.isCompleted;
 
   let value;
   if (opts.position !== undefined) {
@@ -108,15 +173,36 @@ export function logProgress(goalId, rawValue, opts = {}) {
     goal.completedAt = new Date().toISOString();
   }
   upsertGoal(goal);
+
+  // Store undo info
+  _lastUndo = {
+    goalId: goal.id,
+    goalTitle: goal.title,
+    value,
+    unit: goal.unit,
+    date: today,
+    prevCompleted,
+    prevLastPosition,
+    prevIsCompleted,
+    timestamp: Date.now(),
+  };
+
   return goal;
 }
 
 export function getStats(goal) {
-  const percent = Math.min(100, Math.round((goal.completed / goal.target) * 100));
-  const remaining = Math.max(0, goal.target - goal.completed);
+  const percent = goal.target === Infinity
+    ? 0
+    : Math.min(100, Math.round((goal.completed / goal.target) * 100));
+  const remaining = goal.target === Infinity
+    ? 0
+    : Math.max(0, goal.target - goal.completed);
   const streak = computeStreak(goal.history);
-  const avgDaily = computeAvgDaily(goal.history);
-  const daysLeft = avgDaily > 0 ? Math.ceil(remaining / avgDaily) : null;
+  // FIXED: pass createdAt so avg uses total calendar days, not just logged days
+  const avgDaily = computeAvgDaily(goal.history, goal.createdAt);
+  const daysLeft = avgDaily > 0 && goal.target !== Infinity
+    ? Math.ceil(remaining / avgDaily)
+    : null;
   return { percent, remaining, streak, avgDaily, daysLeft };
 }
 
@@ -134,10 +220,36 @@ export function computeStreak(history) {
   return streak;
 }
 
-export function computeAvgDaily(history) {
-  const active = history.filter(h => h.value > 0);
-  if (!active.length) return 0;
-  return active.reduce((s, h) => s + h.value, 0) / active.length;
+/**
+ * FIXED: Compute average daily progress using TOTAL calendar days since
+ * goal creation, not just the count of days with logs.
+ *
+ * This ensures predictions are realistic. If someone created a goal 10 days
+ * ago but only logged on 2 of those days, the average reflects the actual
+ * pace (total / 10) rather than the inflated (total / 2).
+ *
+ * Works retroactively for all existing goals since createdAt is already stored.
+ */
+export function computeAvgDaily(history, createdAt) {
+  if (!history.length) return 0;
+  const total = history.reduce((s, h) => s + h.value, 0);
+  if (total <= 0) return 0;
+  const totalDays = daysBetween(createdAt, todayStr());
+  if (totalDays <= 0) return total; // created today — return total as avg
+  return total / totalDays;
+}
+
+/**
+ * Calculate the number of days between two date strings (YYYY-MM-DD or ISO).
+ * Returns at least 1 if the dates are the same day.
+ */
+export function daysBetween(dateStrA, dateStrB) {
+  if (!dateStrA) return 1;
+  const a = new Date(typeof dateStrA === 'string' ? dateStrA.slice(0, 10) + 'T00:00:00' : dateStrA);
+  const b = new Date(typeof dateStrB === 'string' ? dateStrB.slice(0, 10) + 'T00:00:00' : dateStrB);
+  const diffMs = Math.abs(b - a);
+  const days = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+  return Math.max(1, days); // at minimum 1 day
 }
 
 export function getGlobalAnalytics(days = 30) {
@@ -326,4 +438,3 @@ export function getExpectedCumulative(goal, days = 30) {
     value: Math.min((expected += goal.dailyTarget), goal.target),
   }));
 }
-

@@ -4,6 +4,7 @@
 #app {
   min-height: 100dvh;
   padding-bottom: calc(var(--nav-h) + var(--safe-bottom) + 16px);
+  position: relative;
 }
 
 /* ── Header ───────────────────────────────────────────────────── */
@@ -11,15 +12,27 @@
   position: sticky;
   top: 0;
   z-index: 50;
-  background: rgba(7,7,15,0.85);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border-bottom: 1px solid var(--border-glass);
+  background: rgba(7,7,15,0.82);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border-bottom: 1px solid rgba(124,58,237,0.08);
   padding: var(--s-4) var(--s-5);
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: var(--s-3);
+}
+/* Gradient fade below header */
+.app-header::after {
+  content: '';
+  position: absolute;
+  bottom: -20px;
+  left: 0;
+  right: 0;
+  height: 20px;
+  background: linear-gradient(to bottom, rgba(7,7,15,0.4), transparent);
+  pointer-events: none;
+  z-index: -1;
 }
 .app-logo {
   display: flex;
@@ -36,6 +49,7 @@
   justify-content: center;
   font-size: 1rem;
   box-shadow: 0 2px 12px rgba(124,58,237,0.4);
+  animation: glowBreath 3s ease-in-out infinite;
 }
 .app-logo-name {
   font-family: var(--font-display);
@@ -58,12 +72,12 @@
   justify-content: center;
   color: var(--text-secondary);
   font-size: 1.1rem;
-  transition: background var(--t-fast), color var(--t-fast), transform var(--t-fast);
+  transition: background var(--t-fast), color var(--t-fast), transform 0.4s cubic-bezier(0.34,1.56,0.64,1);
 }
 .btn-settings:hover {
   background: var(--bg-glass-hover);
   color: var(--text-primary);
-  transform: rotate(45deg);
+  transform: rotate(60deg);
 }
 
 /* ── Tab Content Area ────────────────────────────────────────── */
@@ -114,6 +128,8 @@
   display: flex;
   align-items: center;
   gap: var(--s-3);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
 }
 .completed-banner-icon { font-size: 1.75rem; }
 .completed-banner-text h3 { font-family: var(--font-display); font-size: 0.95rem; font-weight: 700; color: #10b981; }
@@ -122,14 +138,16 @@
 /* ── Analytics Page ──────────────────────────────────────────── */
 #page-analytics { padding-top: var(--s-2); }
 .analytics-hero {
-  background: linear-gradient(135deg, rgba(124,58,237,0.15), rgba(99,102,241,0.08));
-  border: 1px solid rgba(124,58,237,0.2);
+  background: linear-gradient(135deg, rgba(124,58,237,0.12), rgba(99,102,241,0.06));
+  border: 1px solid rgba(124,58,237,0.18);
   border-radius: var(--r-2xl);
-  padding: var(--s-5);
+  padding: var(--s-6) var(--s-5);
   margin-bottom: var(--s-4);
   text-align: center;
   position: relative;
   overflow: hidden;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
 .analytics-hero::before {
   content: '';
@@ -139,16 +157,29 @@
   border-radius: var(--r-full);
   background: radial-gradient(circle, rgba(124,58,237,0.15) 0%, transparent 70%);
   pointer-events: none;
+  animation: floatUp 6s ease-in-out infinite;
+}
+.analytics-hero::after {
+  content: '✨';
+  position: absolute;
+  bottom: 12px;
+  right: 16px;
+  font-size: 1.2rem;
+  opacity: 0.15;
+  animation: glowPulse 3s ease-in-out infinite;
+  pointer-events: none;
 }
 .analytics-hero-pct {
   font-family: var(--font-display);
   font-size: 3rem;
   font-weight: 900;
-  background: linear-gradient(135deg, #c4b5fd, #818cf8);
+  background: linear-gradient(135deg, #c4b5fd, #818cf8, #c4b5fd);
+  background-size: 200% auto;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
   line-height: 1.1;
+  animation: shineSweep 4s ease-in-out infinite;
 }
 .analytics-hero-label {
   font-size: 0.8rem;
@@ -167,6 +198,7 @@
   background: linear-gradient(90deg, var(--purple-600), var(--indigo-400));
   border-radius: var(--r-full);
   transition: width 1s cubic-bezier(0.34,1.1,0.64,1);
+  box-shadow: 0 0 12px rgba(124,58,237,0.4);
 }
 
 /* ── Goal-Specific Analytics (inside detail modal) ────────────── */
@@ -192,11 +224,13 @@
   align-items: center;
   justify-content: space-between;
   padding: var(--s-3) var(--s-4);
-  background: var(--bg-card);
+  background: rgba(19, 19, 31, 0.6);
   border: 1px solid var(--border-glass);
   border-radius: var(--r-md);
   margin-bottom: var(--s-2);
+  transition: background var(--t-fast);
 }
+.settings-item:hover { background: rgba(19, 19, 31, 0.8); }
 .settings-item-label { font-size: 0.9rem; font-weight: 500; }
 .settings-item-sublabel { font-size: 0.75rem; color: var(--text-muted); }
 .settings-btn {
@@ -207,9 +241,10 @@
   color: var(--text-secondary);
   font-size: 0.8rem;
   font-weight: 600;
-  transition: background var(--t-fast), color var(--t-fast);
+  transition: background var(--t-fast), color var(--t-fast), transform var(--t-fast);
 }
 .settings-btn:hover { background: var(--bg-glass-hover); color: var(--text-primary); }
+.settings-btn:active { transform: scale(0.95); }
 
 /* ── Per-goal select (analytics tab filter) ───────────────────── */
 .goal-selector-row {
@@ -228,7 +263,7 @@
   padding: 6px 14px;
   border-radius: var(--r-full);
   border: 1.5px solid var(--border-glass-strong);
-  background: var(--bg-card);
+  background: rgba(19, 19, 31, 0.6);
   font-size: 0.8rem;
   font-weight: 600;
   color: var(--text-secondary);
@@ -236,11 +271,14 @@
   cursor: pointer;
   transition: all var(--t-fast);
   flex-shrink: 0;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
 }
 .goal-chip:hover { background: var(--bg-elevated); color: var(--text-primary); }
 .goal-chip.active {
   color: #fff;
   border-color: transparent;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.2);
 }
 .goal-chip-dot {
   width: 8px;
@@ -252,6 +290,7 @@
 @media (min-width: 480px) {
   .tab-panels { padding-left: var(--s-5); padding-right: var(--s-5); }
   .stat-grid { grid-template-columns: 1fr 1fr; }
+  .goal-detail-stats { grid-template-columns: repeat(3, 1fr); }
 }
 @media (min-width: 640px) {
   #app { max-width: 520px; margin: 0 auto; }

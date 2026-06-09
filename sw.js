@@ -1,4 +1,4 @@
-const CACHE_NAME = 'habitpulse-v1';
+const CACHE_NAME = 'habitpulse-v2';
 const ASSETS = [
   './',
   './index.html',
@@ -13,6 +13,9 @@ const ASSETS = [
   './js/charts.js',
   'https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js',
 ];
+
+// CDN assets to cache-first (rarely change)
+const CDN_HOSTS = ['cdn.jsdelivr.net', 'fonts.googleapis.com', 'fonts.gstatic.com'];
 
 self.addEventListener('install', e => {
   e.waitUntil(
@@ -31,7 +34,27 @@ self.addEventListener('activate', e => {
 });
 
 self.addEventListener('fetch', e => {
+  const url = new URL(e.request.url);
+  
+  // CDN resources: cache-first (Chart.js, fonts — rarely change)
+  if (CDN_HOSTS.some(host => url.hostname.includes(host))) {
+    e.respondWith(
+      caches.match(e.request).then(cached => cached || fetch(e.request).then(resp => {
+        const clone = resp.clone();
+        caches.open(CACHE_NAME).then(cache => cache.put(e.request, clone));
+        return resp;
+      }))
+    );
+    return;
+  }
+
+  // App files: network-first so updates are picked up immediately
+  // Falls back to cache for offline support
   e.respondWith(
-    caches.match(e.request).then(cached => cached || fetch(e.request))
+    fetch(e.request).then(resp => {
+      const clone = resp.clone();
+      caches.open(CACHE_NAME).then(cache => cache.put(e.request, clone));
+      return resp;
+    }).catch(() => caches.match(e.request))
   );
 });
