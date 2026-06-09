@@ -421,20 +421,54 @@ export function getTodayLogged(goal) {
   return entry ? entry.value : 0;
 }
 
-/** Cumulative actual progress data, starting from startingProgress */
+/** Cumulative actual progress data, starting from the total progress before the window */
 export function getCumulativeData(goal, days = 30) {
   const daily = getDailyData(goal.history, days);
-  let running = goal.startingProgress || 0;
-  return daily.map(d => ({ date: d.date, value: (running += d.value) }));
+  if (!daily.length) return [];
+
+  // Calculate the starting value (cumulative sum before the first day of the window)
+  const firstDate = daily[0].date;
+  const sumBefore = goal.history
+    .filter(h => h.date < firstDate)
+    .reduce((sum, h) => sum + h.value, 0);
+  const startVal = (goal.startingProgress || 0) + sumBefore;
+
+  // Prepend Day 0 baseline so actual and expected start from the same point
+  const dayBefore = shiftDate(firstDate, -1);
+  const result = [{ date: dayBefore, value: startVal }];
+
+  let running = startVal;
+  daily.forEach(d => {
+    running += d.value;
+    result.push({ date: d.date, value: running });
+  });
+
+  return result;
 }
 
-/** Expected cumulative line based on goal.dailyTarget pace */
+/** Expected cumulative line starting from the same value at the beginning of the window */
 export function getExpectedCumulative(goal, days = 30) {
   if (!goal.dailyTarget || goal.dailyTarget <= 0) return null;
   const daily = getDailyData(goal.history, days);
-  let expected = goal.startingProgress || 0;
-  return daily.map(d => ({
-    date: d.date,
-    value: Math.min((expected += goal.dailyTarget), goal.target),
-  }));
+  if (!daily.length) return [];
+
+  // Calculate the starting value (cumulative sum before the first day of the window)
+  const firstDate = daily[0].date;
+  const sumBefore = goal.history
+    .filter(h => h.date < firstDate)
+    .reduce((sum, h) => sum + h.value, 0);
+  const startVal = (goal.startingProgress || 0) + sumBefore;
+
+  // Prepend Day 0 baseline so actual and expected start from the same point
+  const dayBefore = shiftDate(firstDate, -1);
+  const result = [{ date: dayBefore, value: startVal }];
+
+  let expected = startVal;
+  daily.forEach(d => {
+    expected += goal.dailyTarget;
+    const val = goal.target !== Infinity ? Math.min(expected, goal.target) : expected;
+    result.push({ date: d.date, value: val });
+  });
+
+  return result;
 }
