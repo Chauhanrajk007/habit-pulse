@@ -119,8 +119,8 @@ function buildGoalCard(goal, completed = false) {
   const actionsHtml = !completed ? `
     <div class="goal-actions">
       <button class="btn-log" data-log="${goal.id}" id="btn-log-${goal.id}">+ Log Progress</button>
-      <button class="btn-icon" data-undo="${goal.id}" title="Undo Last">↩️</button>
       <button class="btn-icon" data-detail="${goal.id}" title="Details">📊</button>
+      <button class="btn-icon" data-undo="${goal.id}" title="Undo Last">↩️</button>
     </div>` : `
     <div class="goal-actions">
       <button class="btn-icon" data-detail="${goal.id}" title="Details" style="flex:1">📊 View Stats</button>
@@ -193,8 +193,8 @@ function buildHabitCard(goal) {
     </div>
     <div class="goal-actions">
       <button class="btn-log" data-log="${goal.id}" id="btn-log-${goal.id}">+ Log</button>
-      <button class="btn-icon" data-undo="${goal.id}" title="Undo Last">↩️</button>
       <button class="btn-icon" data-detail="${goal.id}" title="Details">📊</button>
+      <button class="btn-icon" data-undo="${goal.id}" title="Undo Last">↩️</button>
     </div>`;
   return card;
 }

@@ -58,6 +58,25 @@ export function saveSettings(settings) {
   localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
 }
 
+// ── Undo State ────────────────────────────────────────────────
+
+export function getUndoState() {
+  try {
+    const raw = localStorage.getItem('habitpulse_undo_v1');
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+export function saveUndoState(state) {
+  if (state === null) {
+    localStorage.removeItem('habitpulse_undo_v1');
+  } else {
+    localStorage.setItem('habitpulse_undo_v1', JSON.stringify(state));
+  }
+}
+
 // ── Backup / Restore ──────────────────────────────────────────
 
 export function exportBackup() {

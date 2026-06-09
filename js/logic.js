@@ -2,7 +2,7 @@
  * logic.js — Pure business logic, no DOM
  */
 
-import { generateId, getGoals, upsertGoal } from './storage.js';
+import { generateId, getGoals, upsertGoal, getUndoState, saveUndoState } from './storage.js';
 
 // ── Goal Palette ──────────────────────────────────────────────
 const PALETTE = ['#7c3aed','#0ea5e9','#10b981','#f59e0b','#ef4444','#ec4899','#14b8a6','#f97316'];
@@ -79,39 +79,30 @@ export function createGoal({ title, unit, target, startingProgress, color, daily
 }
 
 // ── Undo / Rollback System ────────────────────────────────────
-// Stores the last log action so it can be reversed (single undo)
-let _lastUndo = null;
 
-/**
- * Clears undo state (called on page transitions, new logs, etc.)
- */
-export function clearUndo() { _lastUndo = null; }
+export function clearUndo() { saveUndoState(null); }
 
-/**
- * Returns info about the available undo, or null if none.
- */
 export function getLastUndoInfo() {
-  if (!_lastUndo) return null;
+  const state = getUndoState();
+  if (!state) return null;
   // Expire undo after 30 seconds
-  if (Date.now() - _lastUndo.timestamp > 30000) {
-    _lastUndo = null;
+  if (Date.now() - state.timestamp > 30000) {
+    saveUndoState(null);
     return null;
   }
   return {
-    goalId: _lastUndo.goalId,
-    goalTitle: _lastUndo.goalTitle,
-    value: _lastUndo.value,
-    unit: _lastUndo.unit,
+    goalId: state.goalId,
+    goalTitle: state.goalTitle,
+    value: state.value,
+    unit: state.unit,
   };
 }
 
-/**
- * Undo the last log entry. Returns the updated goal or null.
- */
 export function undoLastLog() {
-  if (!_lastUndo) return null;
-  const info = _lastUndo;
-  _lastUndo = null; // consume the undo
+  const state = getUndoState();
+  if (!state) return null;
+  const info = state;
+  saveUndoState(null); // consume the undo
 
   const goals = getGoals();
   const goal = goals.find(g => g.id === info.goalId);
@@ -175,7 +166,7 @@ export function logProgress(goalId, rawValue, opts = {}) {
   upsertGoal(goal);
 
   // Store undo info
-  _lastUndo = {
+  saveUndoState({
     goalId: goal.id,
     goalTitle: goal.title,
     value,
@@ -185,7 +176,7 @@ export function logProgress(goalId, rawValue, opts = {}) {
     prevLastPosition,
     prevIsCompleted,
     timestamp: Date.now(),
-  };
+  });
 
   return goal;
 }
