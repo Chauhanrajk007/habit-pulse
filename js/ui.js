@@ -849,11 +849,11 @@ export function openDetailModal(goalId) {
     : stats.remaining === 0 ? 'Done!' : 'N/A';
 
   const isHabit = goal.target === Infinity;
-  document.getElementById('card-target').style.display = isHabit ? 'none' : 'flex';
-  document.getElementById('card-remaining').style.display = isHabit ? 'none' : 'flex';
-  document.getElementById('card-pct').style.display = isHabit ? 'none' : 'flex';
+  document.getElementById('card-target').style.display = isHabit ? 'none' : '';
+  document.getElementById('card-remaining').style.display = isHabit ? 'none' : '';
+  document.getElementById('card-pct').style.display = isHabit ? 'none' : '';
   document.getElementById('card-days-left').style.display = isHabit ? 'none' : 'flex';
-  document.getElementById('card-habit-status').style.display = isHabit ? 'flex' : 'none';
+  document.getElementById('card-habit-status').style.display = isHabit ? '' : 'none';
 
   if (isHabit) {
     let statusText = 'On Track';

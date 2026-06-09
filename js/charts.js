@@ -34,7 +34,6 @@ function commonScaleOpts() {
     y: {
       grid: { color: gridColor, drawBorder: false },
       beginAtZero: true,
-      grace: '5%',
       border: { display: false },
       ticks: { color: tickColor, font: { size: 11, family: fontFamily } },
     },
@@ -125,6 +124,7 @@ export function renderDailyLineChart(canvasId, dailyData, color = '#7c3aed', uni
     type: 'line',
     data: chartData,
     options: {
+      layout: { padding: { top: 10 } },
       responsive: true,
       maintainAspectRatio: false,
       interaction: { intersect: false, mode: 'index' },
@@ -288,6 +288,7 @@ export function renderGlobalLineChart(canvasId, dailyTotals, unit = '') {
     type: 'line',
     data: { labels, datasets },
     options: {
+      layout: { padding: { top: 10 } },
       responsive: true,
       maintainAspectRatio: false,
       interaction: { intersect: false, mode: 'index' },
@@ -463,6 +464,7 @@ export function renderCumulativeChart(canvasId, actualData, expectedData, color 
     type: 'line',
     data: { labels, datasets },
     options: {
+      layout: { padding: { top: 10 } },
       responsive: true,
       maintainAspectRatio: false,
       interaction: { intersect: false, mode: 'index' },
