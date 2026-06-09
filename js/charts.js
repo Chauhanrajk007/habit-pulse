@@ -401,7 +401,7 @@ export function renderCumulativeChart(canvasId, actualData, expectedData, color 
     borderColor: color,
     backgroundColor: gradient,
     borderWidth: 2.5,
-    fill: true,
+    fill: 'origin',
     tension: 0.4,
     pointBackgroundColor: color,
     pointBorderColor: 'transparent',
@@ -453,7 +453,8 @@ export function renderCumulativeChart(canvasId, actualData, expectedData, color 
           callbacks: {
             title: (items) => {
               const d = actualData[items[0].dataIndex];
-              return d ? new Date(d.date + 'T00:00:00').toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric', year:'numeric' }) : '';
+              if (!d) return '';
+              return new Date(d.date + 'T00:00:00').toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric', year:'numeric' });
             },
             label: (item) => ` ${item.dataset.label}: ${roundVal(item.parsed.y)} ${displayUnit}`,
           },

@@ -689,8 +689,7 @@ export function initLogForm() {
       setTimeout(() => switchTab('completed'), 1200);
     } else {
       // Show undo toast instead of plain toast
-      const loggedStr = isTime ? formatSeconds(positionBased ? (updated.completed - (getLastUndoInfo()?.value || 0) + (getLastUndoInfo()?.value || 0)) : value) : '';
-      const displayVal = isTime ? formatSeconds(getLastUndoInfo()?.value || value) : (getLastUndoInfo()?.value || value) + ' ' + unit;
+      const displayVal = isTime ? formatSeconds(value) : value + ' ' + unit;
       showToast(`Logged ${displayVal}`, 'success', {
         undoAction: () => {
           const undone = undoLastLog();
@@ -875,14 +874,14 @@ export function openDetailModal(goalId) {
       const expected = getExpectedCumulative(goal, r);
       renderCumulativeChart('chart-detail-daily', actual, expected, goal.color, unitLabel, td);
       // hide weekly bar in cumulative mode (not meaningful)
-      const wrapWeekly = document.getElementById('chart-detail-weekly').parentElement;
+      const wrapWeekly = document.getElementById('chart-detail-weekly')?.closest('.chart-wrap');
       if (wrapWeekly) wrapWeekly.style.opacity = '0.3';
     } else {
       const daily  = getDailyData(goal.history, r);
       const weekly = getWeeklyData(goal.history, r === 'all' ? 52 : Math.ceil((r === 7 ? 7 : r) / 7));
       renderDailyLineChart('chart-detail-daily',  daily,  goal.color, unitLabel, td);
       renderWeeklyBarChart('chart-detail-weekly', weekly, goal.color, unitLabel, td);
-      const wrapWeekly = document.getElementById('chart-detail-weekly').parentElement;
+      const wrapWeekly = document.getElementById('chart-detail-weekly')?.closest('.chart-wrap');
       if (wrapWeekly) wrapWeekly.style.opacity = '1';
     }
 
@@ -1042,7 +1041,7 @@ export function initChartControls() {
       chartState.global.range = range;
       syncRangePills('global-range-row', range);
       const analytics = getGlobalAnalytics(range);
-      renderGlobalLineChart('chart-global-daily', analytics.dailyTotals);
+      renderGlobalLineChart('chart-global-daily', analytics.dailyTotals, '%');
     }
 
     if (ctx === 'pergoal') {

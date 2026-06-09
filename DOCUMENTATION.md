@@ -1,11 +1,6 @@
 # HabitPulse — Documentation
 
-> **Version 2.0** · PWA Goal & Habit Tracker with Rollback, Smart Predictions & Analytics
-
----
-
 ## Table of Contents
-
 1. [Overview](#1-overview)
 2. [Architecture](#2-architecture)
 3. [Data Model](#3-data-model)
@@ -16,429 +11,115 @@
 8. [Data Management](#8-data-management)
 9. [Developer Guide](#9-developer-guide)
 
----
-
 ## 1. Overview
-
-### What is HabitPulse?
-
-HabitPulse is a **Progressive Web App (PWA)** for tracking customizable goals and habits. It runs entirely in the browser with no backend — all data is stored in `localStorage`.
-
-### Key Features
-
-- **Goals** — Fixed-target tracking (e.g., "Read 400 pages")
-- **Habits** — Ongoing daily tracking with no end date (e.g., "Study daily")
-- **Flexible Units** — Hours (h:m:s), videos, pages, problems, or custom units
-- **Two Logging Modes** — "How much" (amount) or "Till where" (position-based auto-calc)
-- **Undo / Rollback** — Single-entry undo via toast or detail modal
-- **Daily Focus Banner** — Shows today's remaining tasks at a glance
-- **Streak Tracking** — Consecutive day counting
-- **Smart Predictions** — Estimated days to finish based on actual pace
-- **Deficit/Surplus** — How far ahead or behind on daily targets
-- **Analytics Dashboard** — Global stats, per-goal charts, donut chart
-- **Charts** — Daily line, weekly bar, cumulative vs expected, time-unit toggle
-- **Export/Import** — JSON backup and restore
-- **Offline Support** — Service worker caches all assets
-- **Install as App** — PWA install prompt
-
-### Technology Stack
-
-| Layer | Technology |
-|-------|-----------|
-| Structure | HTML5 (single `index.html`) |
-| Logic | Vanilla JavaScript (ES modules) |
-| Styling | Vanilla CSS (4 files, custom properties) |
-| Charts | Chart.js v4 (CDN) |
-| Storage | `localStorage` |
-| PWA | Service Worker + Web App Manifest |
-| Fonts | Google Fonts (Inter + Outfit) |
-
----
+HabitPulse is a modern, privacy-first web application designed to help users build habits and track goals without relying on a backend server.
+- **Key Features**: Supports both "Habits" (daily repeating targets) and "Goals" (fixed targets over time), rich charting and analytics, a premium dark-mode UI with glassmorphism, completely offline functionality (PWA), and robust data export/import capabilities.
+- **Technology Stack**: HTML5, Vanilla JavaScript (ES6 Modules), CSS3 (Variables, Animations), Chart.js (via CDN) for analytics, and Service Workers for offline PWA capabilities.
 
 ## 2. Architecture
+The app follows a modular frontend architecture.
+- `index.html`: The core markup, layout, and entry point.
+- `js/app.js`: Application bootstrapper. It initializes all modals, components, and event listeners, and registers the PWA Service Worker.
+- `js/storage.js`: The persistence layer. It handles all `localStorage` interactions, backups, parsing, and data validation.
+- `js/logic.js`: The business logic layer. Calculates statistics, daily averages, target completion, streaks, and handles the rollback/undo system.
+- `js/ui.js`: The view layer. Manages DOM manipulation, rendering goals, populating modals, parsing user input, and coordinating state changes.
+- `js/charts.js`: The visualization layer. Acts as a wrapper around Chart.js to render the Daily, Weekly, Global, and Cumulative charts.
+- `css/*.css`: The design system split into `design-system.css` (variables and utilities), `components.css` (cards, buttons, modals), `animations.css` (keyframes), and `pages.css` (layouts).
+- `sw.js`: The Service Worker script caching static assets to ensure offline availability.
 
-### File Structure
-
-```
-habit-pulse-main/
-├── index.html              # Single-page app shell, all HTML
-├── manifest.json           # PWA manifest
-├── sw.js                   # Service worker (network-first)
-├── DOCUMENTATION.md        # This file
-├── icons/
-│   ├── icon-192.png
-│   └── icon-512.png
-├── css/
-│   ├── design-system.css   # Variables, reset, utilities, ambient bg
-│   ├── components.css      # Cards, buttons, modals, forms, toasts
-│   ├── animations.css      # Keyframes, transitions, confetti
-│   └── pages.css           # Page layouts, header, analytics, settings
-└── js/
-    ├── app.js              # Bootstrap, routing, event wiring
-    ├── logic.js            # Pure business logic (no DOM)
-    ├── storage.js          # localStorage CRUD layer
-    ├── ui.js               # All DOM rendering and event binding
-    └── charts.js           # Chart.js wrapper functions
-```
-
-### Module Responsibilities
-
-| Module | Role |
-|--------|------|
-| **app.js** | Entry point. Initializes modals, forms, navigation, service worker, install prompt. |
-| **logic.js** | Pure functions: create goals, log progress, compute stats/streaks/predictions, undo system. No DOM access. |
-| **storage.js** | `localStorage` persistence: get/save/delete goals, settings, export/import backup, ID generation. |
-| **ui.js** | All DOM rendering: goal cards, modals, daily widget, analytics, toasts, confetti. Imports from logic + storage + charts. |
-| **charts.js** | Chart.js wrappers: daily line, weekly bar, global line, donut, cumulative. Handles chart lifecycle (create/destroy). |
-
-### Data Flow
-
-```
-User Action → ui.js (DOM event)
-  → logic.js (compute/validate)
-    → storage.js (persist to localStorage)
-  → ui.js (re-render DOM)
-  → charts.js (re-render charts)
-```
-
----
+**Data Flow**: `storage.js` provides the source of truth -> `logic.js` processes raw data into statistics -> `ui.js` calls these functions and updates the DOM -> user interactions trigger functions in `ui.js` which modify data via `storage.js` and immediately re-render.
 
 ## 3. Data Model
+All data is stored locally in the browser's `localStorage` under specific keys.
 
 ### Goal Object Schema
-
 ```javascript
 {
-  id: "goal_1718000000000_abc123",  // Unique ID (timestamp + random)
-  title: "DSA Course",              // Display name (max 60 chars)
-  unit: "videos",                   // Unit type: "hours"|"videos"|"pages"|"problems"|custom string
-  type: "goal",                     // "goal" (fixed target) or "habit" (no end)
-  isTime: false,                    // true if unit === "hours"
-  target: 400,                      // Total target (Infinity for habits)
-  startingProgress: 50,             // Already completed before tracking
-  completed: 125,                   // Current cumulative progress
-  lastPosition: 125,                // Position tracking for "Till where" mode
-  history: [                        // Daily log entries
-    { date: "2025-06-01", value: 10 },
-    { date: "2025-06-02", value: 15 },
-  ],
-  createdAt: "2025-06-01T10:00:00.000Z",  // ISO timestamp
-  isCompleted: false,               // Auto-set when completed >= target
-  completedAt: null,                // ISO timestamp when completed
-  color: "#7c3aed",                 // Accent color from palette
-  dailyTarget: 5,                   // Optional daily target (null if not set)
+  id: "goal_1623..._a1b2c3", // Unique ID
+  title: "Read a Book",     // Display name
+  type: "habit",            // "habit" | "goal"
+  unit: "pages",            // e.g., pages, kg, steps
+  isTime: false,            // Boolean indicating if unit is time-based
+  target: 500,              // Total target (Infinity for habits)
+  dailyTarget: 20,          // Expected daily increment (null if unset)
+  color: "#7c3aed",         // CSS color hex
+  createdAt: "2023-10-01",  // ISO Date string
+  completed: 120,           // Total amount completed
+  history: [                // Array of history objects
+    { date: "2023-10-01", value: 20 },
+    { date: "2023-10-02", value: 40 }
+  ]
 }
 ```
 
-### History Entry Format
+### History Entry
+- `date` (String): YYYY-MM-DD representation.
+- `value` (Number): The accumulated progress for that specific day.
 
-```javascript
-{ date: "YYYY-MM-DD", value: <number> }
-```
-
-- `date` — ISO date string (local date)
-- `value` — Amount logged that day (in base units: raw count or seconds for time)
-- Multiple logs on the same day are **summed** into one entry
-
-### localStorage Keys
-
-| Key | Content |
-|-----|---------|
-| `habitpulse_goals_v1` | Array of goal objects (JSON) |
-| `habitpulse_settings_v1` | Settings object (JSON) |
-
-### Settings Object
-
-```javascript
-{
-  theme: "dark",           // Currently only dark mode
-  notifications: false     // Reserved for future use
-}
-```
-
----
+### Storage Keys
+- `habitpulse_goals_v1`: JSON string array of the Goal objects.
+- `habitpulse_settings_v1`: JSON string of the user settings (e.g., `{ theme: 'dark', notifications: false }`).
 
 ## 4. Features Guide
-
 ### 4.1 Goals vs Habits
-
-**Goals** have a fixed target and auto-complete when reached:
-- Progress ring shows percentage
-- "Remaining" count shown
-- Confetti celebration on completion
-
-**Habits** track indefinitely with no end date:
-- No progress ring — shows icon circle instead
-- Deficit/surplus tracking against daily target
-- Shows "X logged total" instead of remaining
+- **Goals**: Have a fixed total `target`. The progress ring completes when `completed >= target`.
+- **Habits**: Have an infinite (`Infinity`) target. Progress is tracked day-to-day, and there is no global completion state.
 
 ### 4.2 Logging Progress
-
-Two modes available via segmented toggle:
-
-**"How much" mode** (default):
-- Enter the amount done today (e.g., "5 videos")
-- Added to today's history entry
-
-**"Till where" mode**:
-- Enter your current position (e.g., "video 125")
-- App auto-calculates delta from `lastPosition`
-- Prevents logging if position <= last known position
-- Live preview shows the calculated amount
+- **How Much**: Standard duration logging (e.g., "Read 20 pages"). The entered value is added to `completed` and today's `history` entry.
+- **Till Where**: Position-based logging. If the user previously logged "page 20" and now logs "page 50", the system calculates the delta (30 pages) and adds it to the current day. This position state is temporarily tracked in the modal.
 
 ### 4.3 Undo / Rollback
-
-**Single-entry undo system** — roll back the most recent log:
-
-- After every successful log, an **"Undo" toast** appears for 8 seconds
-- Clicking "Undo" reverses: `completed`, `lastPosition`, `history`, `isCompleted`
-- Also available via ↩️ button in the goal detail modal
-- Undo expires after 30 seconds or when another log is made
-- State is stored in memory (module-level variable), not persisted across page refreshes
-
-**What gets rolled back:**
-- `goal.completed` restored to pre-log value
-- `goal.lastPosition` restored
-- `goal.isCompleted` restored (un-completes if needed)
-- Today's history entry reduced or removed
+The app provides a single-step undo system in the session memory. When a user logs a value, the delta is temporarily stored. Clicking "Undo" subtracts the delta from `completed` and the current day's `history`. Note: The undo state is lost when the page is refreshed.
 
 ### 4.4 Daily Focus Banner
-
-Appears on the Active tab when any goal has a `dailyTarget` set:
-
-- Shows each goal's daily progress bar
-- Quick-log (+) buttons per goal
-- Collapses to "🎉 All daily targets hit!" when all done
-- Automatically hides if no goals have daily targets
+A banner at the top of the app lists goals/habits that have a `dailyTarget`. If today's logged value is less than the `dailyTarget`, it shows as pending. When met, it disappears from the pending list.
 
 ### 4.5 Analytics
-
-**Global Analytics:**
-- Overall completion % (average across all finite goals)
-- Total/Active/Completed counts
-- Best streak across all goals
-- Daily target completion % chart (% of daily targets hit)
-- 7-day moving average trendline
-- Active vs Completed donut chart
-
-**Per-Goal Analytics:**
-- Goal selector chip row
-- Daily progress line chart
-- Weekly consistency bar chart
-- Time-range filters: 7D, 1M, 3M, 6M, 1Y, All
-- Time-unit toggle for time goals: Sec/Min/Hr
-
-**Detail Modal Charts:**
-- Daily view or Cumulative view toggle
-- Cumulative shows actual progress vs expected pace line
-- Range and unit controls
-
----
+The analytics view provides comprehensive statistics:
+- **Global**: A line chart showing overall percentage completion for all goals over time.
+- **Per Goal**: Individual goal breakdowns.
+- **Time Toggle**: If a goal is time-based, the UI provides pills to toggle viewing the values in Seconds, Minutes, or Hours.
 
 ## 5. How Calculations Work
-
 ### 5.1 Average Per Day
-
-```
-avgDaily = totalLogged / calendarDaysSinceCreation
-```
-
-**Why total calendar days?**
-Previous versions divided by only days with logs, which inflated the average. Example:
-- Goal created 10 days ago, logged on 2 days: 10 + 10 = 20 total
-- **Old**: 20 / 2 = **10/day** (misleading)
-- **New**: 20 / 10 = **2/day** (accurate)
-
-This uses the `createdAt` timestamp stored on each goal, so it works correctly for all existing data — even entries logged before the v2 update.
+`Avg = Total Completed / Days Since Creation`.
+The logic uses absolute calendar days elapsed rather than active days logged. This ensures realistic pacing estimates. (e.g. 50 pages over 10 days = 5 pages/day, even if you only logged on 2 of those days).
 
 ### 5.2 Streak
-
-Counts consecutive days with `value > 0`, working backwards from today:
-
-```
-1. Get all dates with positive values, sorted descending
-2. Start cursor at today (if logged today) or yesterday
-3. Walk backwards: if date matches cursor, increment streak and move cursor back 1 day
-4. Break on first gap
-```
+A streak counts consecutive calendar days where `history` value > 0. It checks starting from today; if today is 0, it falls back to checking from yesterday. If yesterday is also 0, the streak breaks.
 
 ### 5.3 Estimated Days to Finish
-
-```
-daysLeft = remaining / avgDaily
-```
-
-Returns `null` if `avgDaily` is 0 or goal is a habit (infinite target).
+`Days Left = Remaining Target / Average Per Day`.
+If `Avg === 0`, it defaults to `Infinity`.
 
 ### 5.4 Habit Deficit/Surplus
-
-Accumulates daily deficit from goal creation to today:
-
-```
-For each day from createdAt to today:
-  deficit += (dailyTarget - loggedThatDay)
-```
-
-- `deficit > 0` → behind schedule
-- `deficit < 0` → ahead of schedule  
-- `deficit = 0` → perfectly on track
+Habits calculate a deficit to determine pacing:
+`Expected = Days Since Creation * Daily Target`.
+`Status = Total Completed - Expected`.
+If Status > 0, the user is ahead. If Status < 0, the user is behind.
 
 ### 5.5 Daily Target Completion %
-
-**Per goal:** `min(100, (todayLogged / dailyTarget) * 100)`
-
-**Global chart:** Average of per-goal percentages across all goals with daily targets.
-
----
+- **Per Goal**: `(Today's Value / Daily Target) * 100` (Capped at 100%).
+- **Global Average**: The mean percentage of all active goals with a `dailyTarget`.
 
 ## 6. UI/UX Design System
-
-### Color Palette
-
-| Variable | Hex | Usage |
-|----------|-----|-------|
-| `--bg-base` | `#07070F` | Page background |
-| `--bg-surface` | `#0E0E1A` | Modal background |
-| `--bg-card` | `rgba(19,19,31,0.75)` | Card background (with blur) |
-| `--bg-elevated` | `#1A1A2A` | Input backgrounds |
-| `--purple-600` | `#7c3aed` | Primary brand color |
-| `--indigo-500` | `#6366f1` | Secondary brand |
-| `--success` | `#10b981` | Completed, on-track |
-| `--warning` | `#f59e0b` | Streak badge |
-| `--danger` | `#ef4444` | Delete, behind, errors |
-
-### Goal Color Palette (auto-assigned)
-
-`#7c3aed` → `#0ea5e9` → `#10b981` → `#f59e0b` → `#ef4444` → `#ec4899` → `#14b8a6` → `#f97316`
-
-### Typography
-
-| Font | Weight | Usage |
-|------|--------|-------|
-| **Outfit** | 700–900 | Headlines, stats, logo |
-| **Inter** | 300–700 | Body text, labels, UI |
-
-### Key Components
-
-- **Glass Cards** — `backdrop-filter: blur(16px)` with gradient border shimmer
-- **Progress Ring** — SVG circle with animated stroke-dashoffset and glow
-- **Bottom Nav** — Frosted glass with animated top indicator pill
-- **Modals** — Bottom sheet with spring animation, drag handle
-- **Toasts** — Glassmorphism with left accent border, optional undo button
-- **Ambient Mesh** — Subtle animated gradient blobs behind content
-
----
+The app uses a premium, highly-polished dark mode interface using CSS variables.
+- **Colors**: Uses specific HSL/hex palettes such as `purple-500` (#8b5cf6), `emerald` (#10b981), and deep dark backgrounds (`#0a0a0f`).
+- **Typography**: Uses `Inter` for highly readable body text, and `Outfit` for bold, stylized display numbers and headings.
+- **Glassmorphism**: Cards and modals utilize `backdrop-filter: blur(12px)` and subtle white transparent borders (`rgba(255,255,255,0.05)`) to create depth over a dark, subtly textured background.
 
 ## 7. PWA Support
-
-### Service Worker Strategy
-
-- **App files** (HTML, CSS, JS): **Network-first** — always tries to fetch latest version, falls back to cache offline
-- **CDN assets** (Chart.js, fonts): **Cache-first** — serves from cache, fetches on miss
-
-This ensures updates are picked up immediately while maintaining offline support.
-
-### Manifest Configuration
-
-```json
-{
-  "name": "HabitPulse",
-  "display": "standalone",
-  "background_color": "#07070F",
-  "theme_color": "#7c3aed",
-  "orientation": "portrait"
-}
-```
-
-### Install Prompt
-
-A banner appears when the browser fires `beforeinstallprompt`, allowing users to install the PWA to their home screen.
-
----
+- **Service Worker (`sw.js`)**: Caches critical assets (`index.html`, CSS, JS, fonts) in a named cache (`v2.0.4`).
+- **Manifest (`manifest.json`)**: Configures the app name, icons, theme color, and standalone display mode for native-like installation on mobile/desktop.
 
 ## 8. Data Management
-
-### Export/Import
-
-- **Export**: Downloads a JSON file containing all goals and settings
-- **Import**: Reads a JSON file, validates structure, replaces all data
-- Backup filename format: `habitpulse-backup-YYYY-MM-DD.json`
-
-### Data Safety on Updates
-
-- All data lives in `localStorage` which is **never cleared** by file updates
-- The service worker uses network-first for app files, so new code is loaded immediately
-- The storage key `habitpulse_goals_v1` remains unchanged across versions
-
-### localStorage Limits
-
-- Typical limit: ~5-10MB per origin
-- Each goal with 365 days of history ≈ 3KB
-- Safe for hundreds of goals with years of history
-
----
+- **Export**: Exports the current `localStorage` payload to a JSON file format containing the `version`, `exportedAt`, `goals`, and `settings`.
+- **Import**: Validates and imports the JSON schema back into `localStorage`. 
+- **Storage Limits**: Standard `localStorage` limit is ~5MB, which is virtually impossible to hit with simple JSON history entries.
 
 ## 9. Developer Guide
-
-### Running Locally
-
-```bash
-# Option 1: Simple file server (Python)
-cd habit-pulse-main
-python -m http.server 8000
-
-# Option 2: VS Code Live Server extension
-# Right-click index.html → "Open with Live Server"
-
-# Option 3: Direct file open (limited — SW won't work)
-# Just open index.html in browser
-```
-
-> **Note**: Service worker requires a server (localhost or HTTPS). Direct file:// opens won't register the SW.
-
-### Adding a New Unit Type
-
-1. In `index.html`, add an `<option>` to `#goal-unit-select`:
-   ```html
-   <option value="chapters">📖 Chapters</option>
-   ```
-2. That's it! The unit string is stored as-is. No JS changes needed for basic units.
-
-### Adding a New Chart
-
-1. In `charts.js`, create a new export function:
-   ```javascript
-   export function renderMyChart(canvasId, data, color) {
-     destroyChart(canvasId);
-     // ... Chart.js config
-     chartRegistry[canvasId] = new Chart(...);
-   }
-   ```
-2. Add a `<canvas>` in `index.html`
-3. Import and call from `ui.js`
-
-### Modifying the Color Palette
-
-Update both locations:
-- `logic.js` line 8: `const PALETTE = [...]`
-- `ui.js` line 20: `const PALETTE = [...]`
-- `css/design-system.css`: `--goal-0` through `--goal-7` variables
-- `index.html`: `.color-swatch` elements in the goal form
-
-### Key Files to Modify
-
-| Want to change... | Edit... |
-|-------------------|---------|
-| Business logic, calculations | `js/logic.js` |
-| UI rendering, modals, events | `js/ui.js` |
-| Data persistence | `js/storage.js` |
-| Chart appearance | `js/charts.js` |
-| Colors, fonts, variables | `css/design-system.css` |
-| Component styles | `css/components.css` |
-| Animations | `css/animations.css` |
-| Page layouts | `css/pages.css` |
-| HTML structure | `index.html` |
-
----
-
-*Last updated: v2.0 — June 2026*
+- **Running Locally**: Simply double-click `index.html` or run any standard local server (e.g., `python -m http.server`). There is no build step.
+- **Adding Units**: Expand the unit dropdowns in `index.html` and the format checks in `js/ui.js` and `js/logic.js`.
+- **Modifying Colors**: Update the CSS variables in `:root` of `css/design-system.css`.
+- **Charts**: Chart configurations are self-contained in `js/charts.js`. Modification requires understanding Chart.js v4.
