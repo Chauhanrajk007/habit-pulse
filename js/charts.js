@@ -319,7 +319,7 @@ export function renderGlobalLineChart(canvasId, dailyTotals, unit = '') {
         ...commonScaleOpts(),
         y: {
           ...commonScaleOpts().y,
-          ...(isPct ? { max: 108, beginAtZero: true } : {}),
+          ...(isPct ? { max: 115, beginAtZero: true } : {}),
           ticks: {
             ...commonScaleOpts().y.ticks,
             ...(isPct ? { stepSize: 20, callback: v => v > 100 ? '' : `${roundVal(v)}${unit}` } : { callback: v => `${roundVal(v)}${unit}` }),
