@@ -5,7 +5,7 @@
 import { generateId, getGoals, upsertGoal, getUndoState, saveUndoState } from './storage.js';
 
 // ── Goal Palette ──────────────────────────────────────────────
-const PALETTE = ['#7c3aed','#0ea5e9','#10b981','#f59e0b','#ef4444','#ec4899','#14b8a6','#f97316'];
+export const PALETTE = ['#7c3aed','#0ea5e9','#10b981','#f59e0b','#ef4444','#ec4899','#14b8a6','#f97316'];
 
 export function pickColor(goals) {
   const used = goals.map(g => g.color);
@@ -274,7 +274,7 @@ export function getGlobalAnalytics(days = 30) {
 
 const validGoals = goals.filter(g => g.target > 0 && g.target !== Infinity);
   const overallPercent = validGoals.length > 0 
-    ? Math.round(validGoals.reduce((sum, g) => sum + Math.min(100, (g.completed / g.target) * 100), 0) / validGoals.length)
+    ? Math.min(100, Math.round(validGoals.reduce((sum, g) => sum + Math.min(100, (g.completed / g.target) * 100), 0) / validGoals.length))
     : 0;
   const bestStreak = goals.reduce((max, g) => Math.max(max, computeStreak(g.history)), 0);
   const today = todayStr();
@@ -438,7 +438,7 @@ export function getCumulativeData(goal, days = 30) {
   let running = startVal;
   daily.forEach(d => {
     running += d.value;
-    result.push({ date: d.date, value: running });
+    result.push({ date: d.date, value: Math.max(0, running) });
   });
 
   return result;

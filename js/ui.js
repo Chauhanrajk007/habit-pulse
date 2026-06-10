@@ -10,7 +10,7 @@ import {
   isTimeUnit, parseTimeToSeconds, resetGoalProgress, getDailyData,
   getWeeklyData, getGlobalAnalytics, TIME_UNIT, convertTimeValue, getTimeUnitLabel,
   getTodayLogged, getCumulativeData, getExpectedCumulative, getHabitDeficit,
-  undoLastLog, getLastUndoInfo, clearUndo
+  undoLastLog, getLastUndoInfo, clearUndo, PALETTE
 } from './logic.js';
 import {
   renderDailyLineChart, renderWeeklyBarChart,
@@ -18,7 +18,7 @@ import {
 } from './charts.js';
 
 // ── Palette ──────────────────────────────────────────────────
-const PALETTE = ['#7c3aed','#0ea5e9','#10b981','#f59e0b','#ef4444','#ec4899','#14b8a6','#f97316'];
+// PALETTE imported from logic.js
 const UNIT_OPTS = ['hours', 'videos', 'pages', 'problems', 'custom'];
 
 // ── Per-context chart state ───────────────────────────────────
@@ -82,9 +82,10 @@ export function showConfirm({ icon, title, msg, confirmText = 'Confirm', onConfi
 
 // ── SVG Progress Ring ─────────────────────────────────────────
 function buildRing(percent, color) {
+  const clamped = Math.min(100, Math.max(0, percent));
   const R = 30;
   const C = 2 * Math.PI * R;
-  const offset = C - (percent / 100) * C;
+  const offset = C - (clamped / 100) * C;
   return `
     <svg viewBox="0 0 72 72" width="72" height="72">
       <circle class="ring-bg" cx="36" cy="36" r="${R}"/>
@@ -250,7 +251,7 @@ export function renderAnalytics() {
 
   // Hero
   document.getElementById('analytics-pct').textContent = analytics.overallPercent + '%';
-  document.getElementById('analytics-progress-fill').style.width = analytics.overallPercent + '%';
+  document.getElementById('analytics-progress-fill').style.width = Math.min(100, analytics.overallPercent) + '%';
 
   // Stat grid
   document.getElementById('stat-total-goals').textContent = analytics.totalGoals;
@@ -899,7 +900,7 @@ export function openDetailModal(goalId) {
   const bar = document.getElementById('detail-progress-fill');
   bar.style.width = '0%';
   bar.style.backgroundColor = goal.color;
-  setTimeout(() => { bar.style.width = stats.percent + '%'; }, 50);
+  setTimeout(() => { bar.style.width = Math.min(100, stats.percent) + '%'; }, 50);
 
   // Charts — initial render with current state
   chartState.detail.goalId = goalId;

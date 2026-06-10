@@ -407,10 +407,10 @@
 <div class="modal-overlay" id="modal-detail" role="dialog" aria-modal="true">
   <div class="modal-sheet">
     <div class="modal-drag-handle"></div>
-    <button class="modal-close" data-close-modal="modal-detail" aria-label="Close">✕</button>
 
     <!-- Header -->
-    <div class="detail-header">
+    <div class="detail-header" style="position:relative">
+      <button class="modal-close" data-close-modal="modal-detail" aria-label="Close" style="top:0;right:0">✕</button>
       <div class="detail-color-dot" id="detail-color-dot"></div>
       <h2 class="modal-title" id="detail-title" style="margin-bottom:0"></h2>
     </div>
@@ -577,14 +577,7 @@
 <!-- ── Scripts ─────────────────────────────────────────────────── -->
 <script type="module" src="./js/app.js"></script>
 
-<script>
-  // Inject today's date into log modal when it opens
-  document.addEventListener('DOMContentLoaded', () => {
-    const today = new Date().toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric' });
-    const el = document.getElementById('log-date-display');
-    if (el) el.textContent = today;
-  });
-</script>
+
 
 </body>
 </html>

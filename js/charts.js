@@ -3,7 +3,7 @@
  * Enhanced v2 — premium dark-mode styling with gradients, animations, better tooltips
  */
 
-const gridColor = 'rgba(255,255,255,0.04)';
+const gridColor = 'rgba(255,255,255,0.08)';
 const tickColor = 'rgba(160,160,192,0.6)';
 const fontFamily = "'Inter', sans-serif";
 
@@ -319,6 +319,7 @@ export function renderGlobalLineChart(canvasId, dailyTotals, unit = '') {
         ...commonScaleOpts(),
         y: {
           ...commonScaleOpts().y,
+          ...(isPct ? { suggestedMax: 110, max: 110 } : {}),
           ticks: {
             ...commonScaleOpts().y.ticks,
             callback: v => `${roundVal(v)}${unit}`,
@@ -494,6 +495,7 @@ export function renderCumulativeChart(canvasId, actualData, expectedData, color 
         y: {
           ...commonScaleOpts().y,
           beginAtZero: false,
+          min: 0,
           ticks: {
             ...commonScaleOpts().y.ticks,
             callback: v => `${roundVal(v)} ${displayUnit}`,
