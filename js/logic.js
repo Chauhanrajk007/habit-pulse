@@ -294,13 +294,18 @@ const validGoals = goals.filter(g => g.target > 0 && g.target !== Infinity);
 }
 
 
-export function getWeeklyData(history, weeks = 8) {
+export function getWeeklyData(history, weeks = 8, endDate = null) {
+  const end = endDate || todayStr();
   const result = [];
   for (let w = weeks - 1; w >= 0; w--) {
     const start = shiftDate(startOfWeek(new Date()), -w * 7);
+    // Skip weeks that start entirely after the end date
+    if (start > end) continue;
     let total = 0;
     for (let d = 0; d < 7; d++) {
-      const entry = history.find(h => h.date === shiftDate(start, d));
+      const dayDate = shiftDate(start, d);
+      if (dayDate > end) break; // Don't count days past end date
+      const entry = history.find(h => h.date === dayDate);
       if (entry) total += entry.value;
     }
     result.push({ label: `W${weeks - w}`, value: total });
@@ -308,26 +313,27 @@ export function getWeeklyData(history, weeks = 8) {
   return result;
 }
 
-/** days = number | 'all' */
-export function getDailyData(history, days = 30) {
-  if (days === 'all') return getAllDailyData(history);
+/** days = number | 'all', endDate = optional cap date (YYYY-MM-DD) for completed goals */
+export function getDailyData(history, days = 30, endDate = null) {
+  if (days === 'all') return getAllDailyData(history, endDate);
+  const end = endDate || todayStr();
   const result = [];
   for (let i = days - 1; i >= 0; i--) {
-    const d = shiftDate(todayStr(), -i);
+    const d = shiftDate(end, -i);
     const entry = history.find(h => h.date === d);
     result.push({ date: d, value: entry ? entry.value : 0 });
   }
   return result;
 }
 
-/** Returns daily data spanning all history entries, filled to today */
-export function getAllDailyData(history) {
-  if (!history.length) return getDailyData([], 30);
+/** Returns daily data spanning all history entries, filled to endDate (or today) */
+export function getAllDailyData(history, endDate = null) {
+  if (!history.length) return getDailyData([], 30, endDate);
   const sorted = [...history].sort((a, b) => a.date.localeCompare(b.date));
   const earliest = sorted[0].date;
   const dates = [];
   let cur = earliest;
-  const end = todayStr();
+  const end = endDate || todayStr();
   while (cur <= end) { dates.push(cur); cur = shiftDate(cur, 1); }
   return dates.map(d => {
     const entry = history.find(h => h.date === d);
@@ -421,7 +427,8 @@ export function getTodayLogged(goal) {
 
 /** Cumulative actual progress data, starting from the total progress before the window */
 export function getCumulativeData(goal, days = 30) {
-  const daily = getDailyData(goal.history, days);
+  const endDate = goal.isCompleted && goal.completedAt ? goal.completedAt.slice(0, 10) : null;
+  const daily = getDailyData(goal.history, days, endDate);
   if (!daily.length) return [];
 
   // Calculate the starting value (cumulative sum before the first day of the window)
@@ -447,7 +454,8 @@ export function getCumulativeData(goal, days = 30) {
 /** Expected cumulative line starting from the same value at the beginning of the window */
 export function getExpectedCumulative(goal, days = 30) {
   if (!goal.dailyTarget || goal.dailyTarget <= 0) return null;
-  const daily = getDailyData(goal.history, days);
+  const endDate = goal.isCompleted && goal.completedAt ? goal.completedAt.slice(0, 10) : null;
+  const daily = getDailyData(goal.history, days, endDate);
   if (!daily.length) return [];
 
   // Calculate the starting value (cumulative sum before the first day of the window)

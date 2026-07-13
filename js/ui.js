@@ -328,8 +328,11 @@ function renderPerGoalCharts(goal, range, timeDisplay) {
   const unitRow = document.getElementById('per-goal-unit-row');
   if (unitRow) unitRow.style.display = goal.isTime ? 'flex' : 'none';
 
-  const daily  = getDailyData(goal.history, r);
-  const weekly = getWeeklyData(goal.history, r === 'all' ? 52 : Math.ceil((r === 7 ? 7 : r) / 7));
+  // For completed goals, cap chart data at the completion date
+  const endDate = goal.isCompleted && goal.completedAt ? goal.completedAt.slice(0, 10) : null;
+
+  const daily  = getDailyData(goal.history, r, endDate);
+  const weekly = getWeeklyData(goal.history, r === 'all' ? 52 : Math.ceil((r === 7 ? 7 : r) / 7), endDate);
   const unitLabel = goal.isTime ? getTimeUnitLabel(td) : goal.unit;
   const timeDsp   = goal.isTime ? td : null;
 
@@ -925,8 +928,10 @@ export function openDetailModal(goalId) {
       const wrapWeekly = document.getElementById('chart-detail-weekly')?.closest('.chart-wrap');
       if (wrapWeekly) wrapWeekly.style.opacity = '0.3';
     } else {
-      const daily  = getDailyData(goal.history, r);
-      const weekly = getWeeklyData(goal.history, r === 'all' ? 52 : Math.ceil((r === 7 ? 7 : r) / 7));
+      // For completed goals, cap chart data at the completion date
+      const endDate = goal.isCompleted && goal.completedAt ? goal.completedAt.slice(0, 10) : null;
+      const daily  = getDailyData(goal.history, r, endDate);
+      const weekly = getWeeklyData(goal.history, r === 'all' ? 52 : Math.ceil((r === 7 ? 7 : r) / 7), endDate);
       renderDailyLineChart('chart-detail-daily',  daily,  goal.color, unitLabel, td, goal.dailyTarget);
       renderWeeklyBarChart('chart-detail-weekly', weekly, goal.color, unitLabel, td);
       const wrapWeekly = document.getElementById('chart-detail-weekly')?.closest('.chart-wrap');
