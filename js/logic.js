@@ -296,9 +296,22 @@ const validGoals = goals.filter(g => g.target > 0 && g.target !== Infinity);
 
 export function getWeeklyData(history, weeks = 8, endDate = null) {
   const end = endDate || todayStr();
+
+  let count = weeks;
+  let baseStart = startOfWeek(new Date());
+
+  if (weeks === 'all') {
+    // Build weeks from the earliest known log (or creation) up to end
+    const sorted = [...history].sort((a, b) => a.date.localeCompare(b.date));
+    const earliest = sorted.length ? sorted[0].date : end;
+    baseStart = startOfWeek(new Date(earliest + 'T00:00:00'));
+    const diffMs = new Date(baseStart + 'T00:00:00') - new Date(end + 'T00:00:00');
+    count = Math.floor(diffMs / (7 * 24 * 60 * 60 * 1000)) + 1;
+  }
+
   const result = [];
-  for (let w = weeks - 1; w >= 0; w--) {
-    const start = shiftDate(startOfWeek(new Date()), -w * 7);
+  for (let w = 0; w < count; w++) {
+    const start = shiftDate(baseStart, w * 7);
     // Skip weeks that start entirely after the end date
     if (start > end) continue;
     let total = 0;
@@ -308,7 +321,7 @@ export function getWeeklyData(history, weeks = 8, endDate = null) {
       const entry = history.find(h => h.date === dayDate);
       if (entry) total += entry.value;
     }
-    result.push({ label: `W${weeks - w}`, value: total });
+    result.push({ label: `W${w + 1}`, value: total });
   }
   return result;
 }
