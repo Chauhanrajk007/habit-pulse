@@ -1,0 +1,135 @@
+/* ─── ANIMATIONS ────────────────────────────────────────────── */
+
+/* ── Page / Tab Transitions ──────────────────────────────────── */
+.tab-panel {
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 0.35s ease, transform 0.35s ease;
+  pointer-events: none;
+}
+.tab-panel.active {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: all;
+}
+
+/* ── Card Entrance ───────────────────────────────────────────── */
+@keyframes cardEnter {
+  from { opacity: 0; transform: translateY(16px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+.card-enter {
+  animation: cardEnter 0.4s cubic-bezier(0.34,1.56,0.64,1) both;
+}
+
+/* Stagger delays for list items */
+.goal-list .card:nth-child(1) { animation-delay: 0ms; }
+.goal-list .card:nth-child(2) { animation-delay: 60ms; }
+.goal-list .card:nth-child(3) { animation-delay: 120ms; }
+.goal-list .card:nth-child(4) { animation-delay: 180ms; }
+.goal-list .card:nth-child(5) { animation-delay: 240ms; }
+.goal-list .card:nth-child(n+6) { animation-delay: 300ms; }
+
+/* ── Confetti Burst ──────────────────────────────────────────── */
+@keyframes confettiPop {
+  0%   { opacity: 1; transform: translate(0,0) scale(1) rotate(0deg); }
+  50%  { opacity: 0.8; }
+  100% { opacity: 0; transform: translate(var(--tx), var(--ty)) scale(0.3) rotate(var(--r)); }
+}
+.confetti-piece {
+  position: fixed;
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  pointer-events: none;
+  z-index: 999;
+  animation: confettiPop 0.9s ease-out forwards;
+}
+/* Some confetti pieces are circles */
+.confetti-piece:nth-child(3n) { border-radius: 50%; }
+.confetti-piece:nth-child(5n) { border-radius: 0; transform-origin: center; }
+
+/* ── Progress Ring Fill ──────────────────────────────────────── */
+@keyframes ringFill {
+  from { stroke-dashoffset: var(--dash-total); }
+  to   { stroke-dashoffset: var(--dash-offset); }
+}
+.ring-progress { animation: ringFill 1s cubic-bezier(0.34,1.1,0.64,1) both; }
+
+/* ── Shimmer Skeleton ──────────────────────────────────────────  */
+@keyframes shimmer {
+  from { background-position: -400px 0; }
+  to   { background-position: 400px 0; }
+}
+.skeleton {
+  background: linear-gradient(90deg, var(--bg-elevated) 25%, rgba(255,255,255,0.05) 50%, var(--bg-elevated) 75%);
+  background-size: 800px 100%;
+  animation: shimmer 1.4s infinite;
+  border-radius: var(--r-md);
+}
+
+/* ── FAB Pulse (when no goals) ───────────────────────────────── */
+@keyframes fabPulse {
+  0%, 100% { box-shadow: 0 6px 24px rgba(124,58,237,0.5), 0 0 40px rgba(124,58,237,0.15); }
+  50%       { box-shadow: 0 6px 40px rgba(124,58,237,0.85), 0 0 60px rgba(124,58,237,0.3); }
+}
+.fab.pulse { animation: fabPulse 2s ease-in-out infinite; }
+
+/* ── Completion Badge Pop ────────────────────────────────────── */
+@keyframes badgePop {
+  0%   { transform: scale(0) rotate(-10deg); }
+  60%  { transform: scale(1.2) rotate(4deg); }
+  100% { transform: scale(1) rotate(0deg); }
+}
+.badge-pop { animation: badgePop 0.5s cubic-bezier(0.34,1.56,0.64,1) forwards; }
+
+/* ── Glow Pulse on Accent ────────────────────────────────────── */
+@keyframes glowPulse {
+  0%, 100% { opacity: 0.6; }
+  50%       { opacity: 1; }
+}
+.glow-pulse { animation: glowPulse 2.5s ease-in-out infinite; }
+
+/* ── Glow Breath ──────────────────────────────────────────────── */
+@keyframes glowBreath {
+  0%, 100% { box-shadow: 0 0 12px rgba(124,58,237,0.2); }
+  50%       { box-shadow: 0 0 24px rgba(124,58,237,0.45); }
+}
+
+/* ── Float Up ──────────────────────────────────────────────────── */
+@keyframes floatUp {
+  0%, 100% { transform: translateY(0); }
+  50%       { transform: translateY(-4px); }
+}
+
+/* ── Gradient Shine Sweep ──────────────────────────────────────── */
+@keyframes shineSweep {
+  0%   { background-position: 200% center; }
+  100% { background-position: -200% center; }
+}
+
+/* ── Spin ──────────────────────────────────────────────────────── */
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+.spin { animation: spin 1s linear infinite; }
+
+/* ── Slide Up (modal) re-used in js ─────────────────────────── */
+@keyframes slideUp {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
+
+/* ── Number counter pop ─────────────────────────────────────── */
+@keyframes numPop {
+  0%   { transform: scale(1.4); color: var(--purple-400); }
+  100% { transform: scale(1); color: inherit; }
+}
+.num-pop { animation: numPop 0.4s ease forwards; }
+
+/* ── Scroll snap list ────────────────────────────────────────── */
+.goal-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}
