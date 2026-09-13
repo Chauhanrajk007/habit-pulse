@@ -11,7 +11,8 @@ import {
   getWeeklyData, getGlobalAnalytics, TIME_UNIT, convertTimeValue, getTimeUnitLabel,
   getTodayLogged, getCumulativeData, getExpectedCumulative, getHabitDeficit,
   undoLastLog, getLastUndoInfo, clearUndo, PALETTE,
-  pauseGoal, resumeGoal, dropGoal, restoreGoal, isActiveGoal, daysBetween, todayStr
+  pauseGoal, resumeGoal, dropGoal, restoreGoal, isActiveGoal, daysBetween, todayStr,
+  getLastActiveDate, getChartEndDate, formatDateShort
 } from './logic.js';
 import {
   renderDailyLineChart, renderWeeklyBarChart,
@@ -250,7 +251,9 @@ function buildParkedCard(goal) {
   const unitLabel = goal.isTime ? 'hours' : goal.unit;
   const totalStr = formatValue(goal.completed - (goal.startingProgress || 0), goal.unit);
   const pausedFor = isPaused ? pausedDayCount(goal) : null;
+  const lastActive = '· last active ' + formatDateShort(getLastActiveDate(goal));
 
+  const streakHtml = stats.streak > 0 ? `<span class="pill pill-streak">🔥 ${stats.streak}d</span>` : '';
   const card = document.createElement('div');
   card.className = 'card card-enter parked-card';
   card.dataset.goalId = goal.id;
@@ -261,9 +264,10 @@ function buildParkedCard(goal) {
       </div>
       <div class="goal-meta">
         <div class="goal-title">${escHtml(goal.title)}</div>
-        <div class="goal-subtitle">${totalStr} logged total ${pausedFor ? '· ' + pausedFor : ''}</div>
+        <div class="goal-subtitle">${totalStr} logged total ${pausedFor ? '· ' + pausedFor : lastActive}</div>
         <div class="goal-footer">
           <span class="pill pill-unit">${escHtml(unitLabel)}</span>
+          ${streakHtml}
           <span class="pill ${isPaused ? 'pill-paused' : 'pill-dropped'}">${isPaused ? '⏸️ Paused' : '🏳️ Dropped'}</span>
         </div>
       </div>
@@ -389,8 +393,8 @@ function renderPerGoalCharts(goal, range, timeDisplay) {
   const unitRow = document.getElementById('per-goal-unit-row');
   if (unitRow) unitRow.style.display = goal.isTime ? 'flex' : 'none';
 
-  // For completed goals, cap chart data at the completion date
-  const endDate = goal.isCompleted && goal.completedAt ? goal.completedAt.slice(0, 10) : null;
+  // For completed goals cap at completion date; for dropped cap at last active day
+  const endDate = getChartEndDate(goal);
 
   const daily  = getDailyData(goal.history, r, endDate);
   const weekly = getWeeklyData(goal.history, r === 'all' ? 'all' : Math.ceil((r === 7 ? 7 : r) / 7), endDate);
@@ -1049,8 +1053,8 @@ export function openDetailModal(goalId) {
       const wrapWeekly = document.getElementById('chart-detail-weekly')?.closest('.chart-wrap');
       if (wrapWeekly) wrapWeekly.style.opacity = '0.3';
     } else {
-      // For completed goals, cap chart data at the completion date
-      const endDate = goal.isCompleted && goal.completedAt ? goal.completedAt.slice(0, 10) : null;
+      // For completed goals cap at completion date; for dropped cap at last active day
+      const endDate = getChartEndDate(goal);
       const daily  = getDailyData(goal.history, r, endDate);
       const weekly = getWeeklyData(goal.history, r === 'all' ? 'all' : Math.ceil((r === 7 ? 7 : r) / 7), endDate);
       renderDailyLineChart('chart-detail-daily',  daily,  goal.color, unitLabel, td, goal.dailyTarget);

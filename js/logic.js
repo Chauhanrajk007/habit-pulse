@@ -263,11 +263,16 @@ export function computeStreak(history, goal = null) {
   const dates = history.filter(h => h.value > 0).map(h => h.date).sort().reverse();
   if (!dates.length) return 0;
   let streak = 0;
-  // While paused, freeze the streak at the day before the pause began
+  // While paused, freeze the streak at the day before the pause began.
+  // When dropped, measure as of the last active day (ignore the dead tail before dropping).
   let anchor = todayStr();
-  if (goal && goal.isPaused && (goal.pausedRanges || []).length) {
-    const open = [...goal.pausedRanges].reverse().find(r => !r.to);
-    if (open && open.from) anchor = shiftDate(open.from, -1);
+  if (goal) {
+    if (goal.isPaused && (goal.pausedRanges || []).length) {
+      const openP = [...goal.pausedRanges].reverse().find(r => !r.to);
+      if (openP && openP.from) anchor = shiftDate(openP.from, -1);
+    } else if (goal.isDropped) {
+      anchor = getLastActiveDate(goal);
+    }
   }
   let cursor = dates[0] === anchor ? anchor : shiftDate(anchor, -1);
   for (const date of dates) {
@@ -288,16 +293,32 @@ export function getStartDate(goal) {
   return createdDate;
 }
 
+/** Last day the goal actually had activity (value > 0). Falls back to creation date. */
+export function getLastActiveDate(goal) {
+  const logs = (goal.history || []).filter(h => Number(h.value) > 0);
+  if (logs.length) return logs.map(h => h.date).sort().reverse()[0];
+  return (goal.createdAt || new Date().toISOString()).slice(0, 10);
+}
+
+/** Cap date for charts/stats. Completed → completedAt. Dropped → last active day (ignores dead tail). */
+export function getChartEndDate(goal) {
+  if (goal.isCompleted && goal.completedAt) return goal.completedAt.slice(0, 10);
+  if (goal.isDropped) return getLastActiveDate(goal);
+  return null;
+}
+
 /**
  * FIXED: Compute average daily progress using TOTAL calendar days since
  * goal creation (or earliest log), not just the count of days with logs.
+ * Dropped goals are measured up to their last active day only.
  */
 export function computeAvgDaily(goal) {
   if (!goal.history.length) return 0;
   const total = goal.history.reduce((s, h) => s + h.value, 0);
   if (total <= 0) return 0;
   const startDate = getStartDate(goal);
-  const totalDays = daysBetween(startDate, todayStr());
+  const endDate = getChartEndDate(goal) || todayStr();
+  const totalDays = daysBetween(startDate, endDate);
   if (totalDays <= 0) return total; // created today — return total as avg
   return total / totalDays;
 }
@@ -476,10 +497,11 @@ export function resetGoalProgress(goalId) {
 export function getHabitDeficit(goal) {
   if (!goal.dailyTarget || goal.dailyTarget <= 0) return null;
   const createdDate = getStartDate(goal);
-  const today = todayStr();
+  // Dropped: only measure deficit up to the last active day (dead tail doesn't count)
+  const end = goal.isDropped ? getLastActiveDate(goal) : todayStr();
   let deficit = 0;
   let cur = createdDate;
-  while (cur <= today) {
+  while (cur <= end) {
     // Skip days while the habit was paused
     if (isInPausedRange(goal, cur)) { cur = shiftDate(cur, 1); continue; }
     const entry = goal.history.find(h => h.date === cur);
@@ -513,7 +535,7 @@ export function getTodayLogged(goal) {
 
 /** Cumulative actual progress data, starting from the total progress before the window */
 export function getCumulativeData(goal, days = 30) {
-  const endDate = goal.isCompleted && goal.completedAt ? goal.completedAt.slice(0, 10) : null;
+  const endDate = getChartEndDate(goal);
   const daily = getDailyData(goal.history, days, endDate);
   if (!daily.length) return [];
 
@@ -540,7 +562,7 @@ export function getCumulativeData(goal, days = 30) {
 /** Expected cumulative line starting from the same value at the beginning of the window */
 export function getExpectedCumulative(goal, days = 30) {
   if (!goal.dailyTarget || goal.dailyTarget <= 0) return null;
-  const endDate = goal.isCompleted && goal.completedAt ? goal.completedAt.slice(0, 10) : null;
+  const endDate = getChartEndDate(goal);
   const daily = getDailyData(goal.history, days, endDate);
   if (!daily.length) return [];
 

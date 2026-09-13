@@ -173,6 +173,12 @@
 .btn-icon-danger { color: var(--danger); }
 .btn-icon-danger:hover { background: rgba(239,68,68,0.1); color: var(--danger); }
 
+/* On very narrow phones keep card action buttons compact */
+@media (max-width: 400px) {
+  .btn-icon { width: 34px; height: 34px; }
+  .goal-actions { gap: var(--s-1); }
+}
+
 /* Parked (paused/dropped) cards */
 .parked-card .goal-card { opacity: 0.82; }
 .parked-card .btn-resume {
@@ -723,16 +729,15 @@
   flex-shrink: 0;
 }
 .detail-actions-row {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
   gap: var(--s-2);
   margin-top: var(--s-5);
-  flex-wrap: wrap;
 }
 .detail-actions-row button {
-  flex: 1;
-  padding: 10px 6px;
+  padding: 12px 6px;
   border-radius: var(--r-md);
-  font-size: 0.75rem;
+  font-size: 0.8rem;
   font-weight: 600;
   border: 1px solid var(--border-glass);
   background: var(--bg-glass);
@@ -740,10 +745,11 @@
   transition: background var(--t-fast), color var(--t-fast), transform var(--t-fast);
   white-space: nowrap;
   min-width: 0;
+  text-align: center;
 }
 .detail-actions-row button:hover { background: var(--bg-glass-hover); color: var(--text-primary); }
 .detail-actions-row button:active { transform: scale(0.95); }
-.detail-actions-row button.danger { color: var(--danger); border-color: rgba(239,68,68,0.25); }
+.detail-actions-row button.danger { color: var(--danger); border-color: rgba(239,68,68,0.25); grid-column: 1 / -1; }
 .detail-actions-row button.danger:hover { background: rgba(239,68,68,0.1); }
 .detail-actions-row button.resume { color: #0ea5e9; border-color: rgba(14,165,233,0.3); }
 .detail-actions-row button.resume:hover { background: rgba(14,165,233,0.1); }
