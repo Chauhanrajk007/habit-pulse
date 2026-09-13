@@ -64,15 +64,6 @@
         <span class="section-count" id="active-count-badge">0</span>
       </div>
       <div class="goal-list" id="active-goal-list"></div>
-
-      <!-- Paused & Dropped -->
-      <div class="parked-section" id="parked-section" style="display:none">
-        <div class="section-header" style="margin-top:24px">
-          <h2 class="section-title">Paused & Dropped</h2>
-          <span class="parked-hint">Paused habits stay out of sight but keep their history</span>
-        </div>
-        <div class="goal-list" id="parked-goal-list"></div>
-      </div>
     </section>
 
     <!-- ── PAGE: Completed Goals ─────────────────────────────── -->
@@ -88,6 +79,21 @@
         <h2 class="section-title">Completed</h2>
       </div>
       <div class="goal-list" id="completed-goal-list"></div>
+    </section>
+
+    <!-- ── PAGE: Paused & Dropped ─────────────────────────────── -->
+    <section id="page-parked" class="tab-panel">
+      <div class="completed-banner" id="parked-banner" style="display:none">
+        <div class="completed-banner-icon">⏸️</div>
+        <div class="completed-banner-text">
+          <h3>Parked Habits</h3>
+          <p id="parked-count-text">0 habits paused or dropped</p>
+        </div>
+      </div>
+      <div class="section-header">
+        <h2 class="section-title">Paused & Dropped</h2>
+      </div>
+      <div class="goal-list" id="parked-goal-list"></div>
     </section>
 
     <!-- ── PAGE: Analytics ───────────────────────────────────── -->
@@ -211,6 +217,13 @@
       <polyline points="20 6 9 17 4 12"/>
     </svg>
     Completed
+  </button>
+  <button class="nav-item" data-tab="parked" id="nav-parked">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/>
+    </svg>
+    Paused
+    <span class="nav-badge" id="parked-nav-badge" style="display:none"></span>
   </button>
   <button class="nav-item" data-tab="analytics" id="nav-analytics">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">

@@ -228,19 +228,27 @@ export function renderActiveGoals() {
   renderDailyWidget();
 }
 
-// ── Paused / Dropped (Parked) Goals ───────────────────────────
+// ── Paused / Dropped (Parked) Page ────────────────────────────
 function renderParkedGoals() {
-  const section = document.getElementById('parked-section');
   const list = document.getElementById('parked-goal-list');
-  if (!section || !list) return;
+  if (!list) return;
   const parked = getGoals().filter(g => !g.isCompleted && (g.isPaused || g.isDropped));
+
+  const badge = document.getElementById('parked-nav-badge');
+  if (badge) {
+    badge.textContent = parked.length;
+    badge.style.display = parked.length ? '' : 'none';
+  }
+  const banner = document.getElementById('parked-banner');
+  const countText = document.getElementById('parked-count-text');
+  if (banner) banner.style.display = parked.length ? 'flex' : 'none';
+  if (countText) countText.textContent = `${parked.length} habit${parked.length > 1 ? 's' : ''} paused or dropped`;
+
+  list.innerHTML = '';
   if (!parked.length) {
-    section.style.display = 'none';
-    list.innerHTML = '';
+    list.appendChild(buildEmptyState('📦', 'Nothing parked', 'Paused or dropped habits appear here'));
     return;
   }
-  section.style.display = '';
-  list.innerHTML = '';
   parked.forEach(g => list.appendChild(buildParkedCard(g)));
   bindGoalCardEvents(list);
 }
@@ -1242,6 +1250,7 @@ export function switchTab(tab) {
 
   if (tab === 'analytics') renderAnalytics();
   if (tab === 'completed') renderCompletedGoals();
+  if (tab === 'parked') renderParkedGoals();
 }
 
 // ── Chart Control Initialization ─────────────────────────────

@@ -300,10 +300,11 @@ export function getLastActiveDate(goal) {
   return (goal.createdAt || new Date().toISOString()).slice(0, 10);
 }
 
-/** Cap date for charts/stats. Completed → completedAt. Dropped → last active day (ignores dead tail). */
+/** Cap date for charts/stats so paused/dropped habits don't show current zeros.
+ * Completed → completedAt. Dropped → last active day. Paused → last active day. */
 export function getChartEndDate(goal) {
   if (goal.isCompleted && goal.completedAt) return goal.completedAt.slice(0, 10);
-  if (goal.isDropped) return getLastActiveDate(goal);
+  if (!isActiveGoal(goal)) return getLastActiveDate(goal);
   return null;
 }
 
