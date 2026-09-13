@@ -70,6 +70,9 @@ export function createGoal({ title, unit, target, startingProgress, color, daily
     history: [],
     createdAt: new Date().toISOString(),
     isCompleted: false,
+    isPaused: false,
+    isDropped: false,
+    pausedRanges: [],
     color: color || pickColor(goals),
     dailyTarget: dailyTarget || null,
   };
@@ -181,6 +184,64 @@ export function logProgress(goalId, rawValue, opts = {}) {
   return goal;
 }
 
+// ── Pause / Drop / Restore ────────────────────────────────────
+
+/** Active = not completed, not paused, not dropped */
+export function isActiveGoal(goal) {
+  return goal && !goal.isCompleted && !goal.isPaused && !goal.isDropped;
+}
+
+export function pauseGoal(goalId) {
+  const goals = getGoals();
+  const goal = goals.find(g => g.id === goalId);
+  if (!goal || goal.isPaused) return null;
+  goal.isPaused = true;
+  goal.pausedRanges = goal.pausedRanges || [];
+  // Close any dangling open range first
+  const open = goal.pausedRanges.find(r => !r.to);
+  if (open) open.to = todayStr();
+  goal.pausedRanges.push({ from: todayStr() });
+  upsertGoal(goal);
+  return goal;
+}
+
+export function resumeGoal(goalId) {
+  const goals = getGoals();
+  const goal = goals.find(g => g.id === goalId);
+  if (!goal || !goal.isPaused) return null;
+  goal.isPaused = false;
+  goal.pausedRanges = goal.pausedRanges || [];
+  const open = goal.pausedRanges.find(r => !r.to);
+  if (open) open.to = todayStr();
+  upsertGoal(goal);
+  return goal;
+}
+
+/** Drop = retire/archive. Keeps history, removed from active lists. */
+export function dropGoal(goalId) {
+  const goals = getGoals();
+  const goal = goals.find(g => g.id === goalId);
+  if (!goal) return null;
+  goal.isDropped = true;
+  goal.droppedAt = new Date().toISOString();
+  goal.isPaused = false;
+  goal.pausedRanges = goal.pausedRanges || [];
+  const open = goal.pausedRanges.find(r => !r.to);
+  if (open) open.to = todayStr();
+  upsertGoal(goal);
+  return goal;
+}
+
+export function restoreGoal(goalId) {
+  const goals = getGoals();
+  const goal = goals.find(g => g.id === goalId);
+  if (!goal) return null;
+  goal.isDropped = false;
+  delete goal.droppedAt;
+  upsertGoal(goal);
+  return goal;
+}
+
 export function getStats(goal) {
   const percent = goal.target === Infinity
     ? 0
@@ -188,7 +249,7 @@ export function getStats(goal) {
   const remaining = goal.target === Infinity
     ? 0
     : Math.max(0, goal.target - goal.completed);
-  const streak = computeStreak(goal.history);
+  const streak = computeStreak(goal.history, goal);
   // FIXED: pass goal so avg uses total calendar days from earliest known date
   const avgDaily = computeAvgDaily(goal);
   const daysLeft = avgDaily > 0 && goal.target !== Infinity
@@ -197,13 +258,18 @@ export function getStats(goal) {
   return { percent, remaining, streak, avgDaily, daysLeft };
 }
 
-export function computeStreak(history) {
+export function computeStreak(history, goal = null) {
   if (!history.length) return 0;
   const dates = history.filter(h => h.value > 0).map(h => h.date).sort().reverse();
   if (!dates.length) return 0;
   let streak = 0;
-  const today = todayStr();
-  let cursor = dates[0] === today ? today : shiftDate(today, -1);
+  // While paused, freeze the streak at the day before the pause began
+  let anchor = todayStr();
+  if (goal && goal.isPaused && (goal.pausedRanges || []).length) {
+    const open = [...goal.pausedRanges].reverse().find(r => !r.to);
+    if (open && open.from) anchor = shiftDate(open.from, -1);
+  }
+  let cursor = dates[0] === anchor ? anchor : shiftDate(anchor, -1);
   for (const date of dates) {
     if (date === cursor) { streak++; cursor = shiftDate(cursor, -1); }
     else if (date < cursor) break;
@@ -258,8 +324,8 @@ export function getGlobalAnalytics(days = 30) {
     dates = pastDays(days);
   }
 
-  // Only goals with a dailyTarget contribute to the combined chart
-  const targetedGoals = goals.filter(g => g.dailyTarget > 0);
+  // Only active goals with a dailyTarget contribute to the combined chart
+  const targetedGoals = goals.filter(g => g.dailyTarget > 0 && isActiveGoal(g));
 
   const dailyTotals = dates.map(d => {
     if (!targetedGoals.length) return { date: d, value: 0 };
@@ -276,7 +342,7 @@ const validGoals = goals.filter(g => g.target > 0 && g.target !== Infinity);
   const overallPercent = validGoals.length > 0 
     ? Math.min(100, Math.round(validGoals.reduce((sum, g) => sum + Math.min(100, (g.completed / g.target) * 100), 0) / validGoals.length))
     : 0;
-  const bestStreak = goals.reduce((max, g) => Math.max(max, computeStreak(g.history)), 0);
+  const bestStreak = goals.reduce((max, g) => isActiveGoal(g) ? Math.max(max, computeStreak(g.history, g)) : max, 0);
   const today = todayStr();
   const todayTotal = goals.reduce((s, g) => {
     const h = g.history.find(h => h.date === today);
@@ -285,7 +351,7 @@ const validGoals = goals.filter(g => g.target > 0 && g.target !== Infinity);
 
   return {
     totalGoals: goals.length,
-    activeCount: goals.filter(g => !g.isCompleted).length,
+    activeCount: goals.filter(g => isActiveGoal(g)).length,
     completedCount: goals.filter(g => g.isCompleted).length,
     overallPercent, bestStreak, todayTotal,
     dailyTotals,
@@ -414,6 +480,8 @@ export function getHabitDeficit(goal) {
   let deficit = 0;
   let cur = createdDate;
   while (cur <= today) {
+    // Skip days while the habit was paused
+    if (isInPausedRange(goal, cur)) { cur = shiftDate(cur, 1); continue; }
     const entry = goal.history.find(h => h.date === cur);
     const logged = entry ? entry.value : 0;
     deficit += (goal.dailyTarget - logged); // positive = behind that day
@@ -426,6 +494,11 @@ export function getHabitDeficit(goal) {
     isOnTrack: deficit === 0,
     value: Math.abs(deficit),
   };
+}
+
+function isInPausedRange(goal, dateStr) {
+  const ranges = goal.pausedRanges || [];
+  return ranges.some(r => r.from && (r.to ? (dateStr >= r.from && dateStr <= r.to) : dateStr >= r.from));
 }
 
 

@@ -64,6 +64,15 @@
         <span class="section-count" id="active-count-badge">0</span>
       </div>
       <div class="goal-list" id="active-goal-list"></div>
+
+      <!-- Paused & Dropped -->
+      <div class="parked-section" id="parked-section" style="display:none">
+        <div class="section-header" style="margin-top:24px">
+          <h2 class="section-title">Paused & Dropped</h2>
+          <span class="parked-hint">Paused habits stay out of sight but keep their history</span>
+        </div>
+        <div class="goal-list" id="parked-goal-list"></div>
+      </div>
     </section>
 
     <!-- ── PAGE: Completed Goals ─────────────────────────────── -->
@@ -503,6 +512,8 @@
     <div class="detail-actions-row" style="margin-top:20px">
       <button id="detail-btn-log">+ Log</button>
       <button id="detail-btn-undo">↩️ Undo</button>
+      <button id="detail-btn-pause">⏸️ Pause</button>
+      <button id="detail-btn-drop">🏳️ Drop</button>
       <button id="detail-btn-edit">✏️ Edit</button>
       <button id="detail-btn-reset">🔄 Reset</button>
       <button id="detail-btn-delete" class="danger">🗑️ Delete</button>

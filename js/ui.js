@@ -10,7 +10,8 @@ import {
   isTimeUnit, parseTimeToSeconds, resetGoalProgress, getDailyData,
   getWeeklyData, getGlobalAnalytics, TIME_UNIT, convertTimeValue, getTimeUnitLabel,
   getTodayLogged, getCumulativeData, getExpectedCumulative, getHabitDeficit,
-  undoLastLog, getLastUndoInfo, clearUndo, PALETTE
+  undoLastLog, getLastUndoInfo, clearUndo, PALETTE,
+  pauseGoal, resumeGoal, dropGoal, restoreGoal, isActiveGoal, daysBetween, todayStr
 } from './logic.js';
 import {
   renderDailyLineChart, renderWeeklyBarChart,
@@ -196,13 +197,15 @@ function buildHabitCard(goal) {
       <button class="btn-log" data-log="${goal.id}" id="btn-log-${goal.id}">+ Log</button>
       <button class="btn-icon" data-detail="${goal.id}" title="Details">📊</button>
       <button class="btn-icon" data-undo="${goal.id}" title="Undo Last">↩️</button>
+      <button class="btn-icon" data-pause="${goal.id}" title="Pause">⏸️</button>
+      <button class="btn-icon" data-drop="${goal.id}" title="Drop">🏳️</button>
     </div>`;
   return card;
 }
 
 // ── Render Active Goals ───────────────────────────────────────
 export function renderActiveGoals() {
-  const goals = getGoals().filter(g => !g.isCompleted);
+  const goals = getGoals().filter(g => isActiveGoal(g));
   const list = document.getElementById('active-goal-list');
   list.innerHTML = '';
 
@@ -215,12 +218,70 @@ export function renderActiveGoals() {
 
   if (!goals.length) {
     list.appendChild(buildEmptyState('🎯', 'No active goals', 'Tap the + button to create your first goal'));
-    renderDailyWidget();
+  } else {
+    goals.forEach(g => list.appendChild(buildGoalCard(g, false)));
+    bindGoalCardEvents(list);
+  }
+
+  renderParkedGoals();
+  renderDailyWidget();
+}
+
+// ── Paused / Dropped (Parked) Goals ───────────────────────────
+function renderParkedGoals() {
+  const section = document.getElementById('parked-section');
+  const list = document.getElementById('parked-goal-list');
+  if (!section || !list) return;
+  const parked = getGoals().filter(g => !g.isCompleted && (g.isPaused || g.isDropped));
+  if (!parked.length) {
+    section.style.display = 'none';
+    list.innerHTML = '';
     return;
   }
-  goals.forEach(g => list.appendChild(buildGoalCard(g, false)));
+  section.style.display = '';
+  list.innerHTML = '';
+  parked.forEach(g => list.appendChild(buildParkedCard(g)));
   bindGoalCardEvents(list);
-  renderDailyWidget();
+}
+
+function buildParkedCard(goal) {
+  const stats = getStats(goal);
+  const isPaused = goal.isPaused;
+  const unitLabel = goal.isTime ? 'hours' : goal.unit;
+  const totalStr = formatValue(goal.completed - (goal.startingProgress || 0), goal.unit);
+  const pausedFor = isPaused ? pausedDayCount(goal) : null;
+
+  const card = document.createElement('div');
+  card.className = 'card card-enter parked-card';
+  card.dataset.goalId = goal.id;
+  card.innerHTML = `
+    <div class="goal-card">
+      <div class="habit-icon-circle" style="background:${goal.color}22;border-color:${goal.color}44;filter:grayscale(0.65)">
+        <span style="font-size:1.3rem">${isPaused ? '⏸️' : '🏳️'}</span>
+      </div>
+      <div class="goal-meta">
+        <div class="goal-title">${escHtml(goal.title)}</div>
+        <div class="goal-subtitle">${totalStr} logged total ${pausedFor ? '· ' + pausedFor : ''}</div>
+        <div class="goal-footer">
+          <span class="pill pill-unit">${escHtml(unitLabel)}</span>
+          <span class="pill ${isPaused ? 'pill-paused' : 'pill-dropped'}">${isPaused ? '⏸️ Paused' : '🏳️ Dropped'}</span>
+        </div>
+      </div>
+    </div>
+    <div class="goal-actions">
+      <button class="btn-log btn-resume" data-resume="${goal.id}" id="btn-resume-${goal.id}">${isPaused ? '▶️ Resume' : '↩️ Restore'}</button>
+      <button class="btn-icon" data-detail="${goal.id}" title="Details">📊</button>
+      <button class="btn-icon btn-icon-danger" data-delete="${goal.id}" title="Delete">🗑️</button>
+    </div>`;
+  return card;
+}
+
+function pausedDayCount(goal) {
+  if (!goal.pausedRanges || !goal.pausedRanges.length) return '';
+  const open = [...goal.pausedRanges].reverse().find(r => !r.to);
+  if (!open || !open.from) return '';
+  const d = daysBetween(open.from, todayStr());
+  return `paused ${d} day${d > 1 ? 's' : ''}`;
 }
 
 
@@ -272,7 +333,7 @@ export function renderAnalytics() {
   renderDonutChart('chart-donut', analytics.activeCount, analytics.completedCount);
 
   // Per-goal chip selector
-  buildGoalChips(goals);
+  buildGoalChips(goals.filter(g => isActiveGoal(g)));
 }
 
 function buildGoalChips(goals) {
@@ -347,9 +408,69 @@ function bindGoalCardEvents(container) {
     const logBtn = e.target.closest('[data-log]');
     const detailBtn = e.target.closest('[data-detail]');
     const undoBtn = e.target.closest('[data-undo]');
-    
+    const pauseBtn = e.target.closest('[data-pause]');
+    const dropBtn = e.target.closest('[data-drop]');
+    const resumeBtn = e.target.closest('[data-resume]');
+    const delParkedBtn = e.target.closest('[data-delete]');
+
     if (logBtn) openLogModal(logBtn.dataset.log);
     if (detailBtn) openDetailModal(detailBtn.dataset.detail);
+
+    if (pauseBtn) {
+      const g = getGoals().find(x => x.id === pauseBtn.dataset.pause);
+      if (g && !g.isPaused) {
+        pauseGoal(g.id);
+        renderActiveGoals();
+        renderCompletedGoals();
+        showToast(`"${g.title}" paused ⏸️`, 'info');
+      }
+    }
+
+    if (dropBtn) {
+      const g = getGoals().find(x => x.id === dropBtn.dataset.drop);
+      if (!g) return;
+      showConfirm({
+        icon: '🏳️', title: 'Drop Goal',
+        msg: `Move "${g.title}" to Paused & Dropped? Its history stays saved.`,
+        confirmText: 'Drop',
+        onConfirm: () => {
+          dropGoal(g.id);
+          renderActiveGoals();
+          renderCompletedGoals();
+          showToast(`"${g.title}" dropped 🏳️`, 'info');
+        }
+      });
+    }
+
+    if (resumeBtn) {
+      const g = getGoals().find(x => x.id === resumeBtn.dataset.resume);
+      if (!g) return;
+      if (g.isDropped) {
+        restoreGoal(g.id);
+        showToast(`"${g.title}" restored ↩️`, 'success');
+      } else if (g.isPaused) {
+        resumeGoal(g.id);
+        showToast(`"${g.title}" resumed ▶️`, 'success');
+      }
+      renderActiveGoals();
+      renderCompletedGoals();
+    }
+
+    if (delParkedBtn) {
+      const g = getGoals().find(x => x.id === delParkedBtn.dataset.delete);
+      showConfirm({
+        icon: '🗑️', title: 'Delete Goal',
+        msg: `Permanently delete "${g ? g.title : ''}"? This cannot be undone.`,
+        confirmText: 'Delete',
+        onConfirm: () => {
+          deleteGoal(delParkedBtn.dataset.delete);
+          renderActiveGoals();
+          renderCompletedGoals();
+          showToast('Goal deleted', 'info');
+        }
+      });
+    }
+
     if (undoBtn) {
       const gId = undoBtn.dataset.undo;
       const undoInfo = getLastUndoInfo();
@@ -772,7 +893,7 @@ export function renderDailyWidget() {
   const container = document.getElementById('daily-widget');
   if (!container) return;
 
-  const goals = getGoals().filter(g => !g.isCompleted);
+  const goals = getGoals().filter(g => isActiveGoal(g));
   const withTarget = goals.filter(g => g.dailyTarget > 0);
 
   // Hide banner entirely if no goals have daily targets set
@@ -950,6 +1071,44 @@ export function openDetailModal(goalId) {
   chartState.detail._redraw = redrawDetailCharts;
 
   // Action buttons
+  const pauseBtnEl = document.getElementById('detail-btn-pause');
+  const dropBtnEl = document.getElementById('detail-btn-drop');
+  if (pauseBtnEl && dropBtnEl) {
+    const isPausedNow = !!goal.isPaused;
+    const isDroppedNow = !!goal.isDropped;
+    pauseBtnEl.textContent = isPausedNow ? '▶️ Resume' : '⏸️ Pause';
+    pauseBtnEl.classList.toggle('resume', isPausedNow);
+    dropBtnEl.textContent = isDroppedNow ? '↩️ Restore' : '🏳️ Drop';
+    dropBtnEl.classList.toggle('resume', isDroppedNow);
+
+    pauseBtnEl.onclick = () => {
+      if (goal.isPaused) { resumeGoal(goalId); showToast(`"${goal.title}" resumed ▶️`, 'success'); }
+      else { pauseGoal(goalId); showToast(`"${goal.title}" paused ⏸️`, 'info'); }
+      closeModal('modal-detail');
+      renderActiveGoals();
+      renderCompletedGoals();
+      if (!goal.isCompleted) openDetailModal(goalId);
+    };
+
+    dropBtnEl.onclick = () => {
+      showConfirm({
+        icon: isDroppedNow ? '↩️' : '🏳️',
+        title: isDroppedNow ? 'Restore Goal' : 'Drop Goal',
+        msg: isDroppedNow
+          ? `Bring "${goal.title}" back to active goals?`
+          : `Move "${goal.title}" to Paused & Dropped? History stays saved.`,
+        confirmText: isDroppedNow ? 'Restore' : 'Drop',
+        onConfirm: () => {
+          if (isDroppedNow) { restoreGoal(goalId); showToast(`"${goal.title}" restored ↩️`, 'success'); }
+          else { dropGoal(goalId); showToast(`"${goal.title}" dropped 🏳️`, 'info'); }
+          closeModal('modal-detail');
+          renderActiveGoals();
+          renderCompletedGoals();
+        }
+      });
+    };
+  }
+
   document.getElementById('detail-btn-log').onclick = () => {
     closeModal('modal-detail');
     setTimeout(() => openLogModal(goalId), 200);

@@ -110,6 +110,16 @@
   color: #10b981;
   border: 1px solid rgba(16,185,129,0.25);
 }
+.pill-paused {
+  background: rgba(245,158,11,0.12);
+  color: #f59e0b;
+  border: 1px solid rgba(245,158,11,0.25);
+}
+.pill-dropped {
+  background: rgba(239,68,68,0.12);
+  color: var(--danger);
+  border: 1px solid rgba(239,68,68,0.25);
+}
 
 /* ── Goal Card Actions ──────────────────────────────────────── */
 .goal-actions {
@@ -160,6 +170,23 @@
 }
 .btn-icon:hover { background: var(--bg-glass-hover); color: var(--text-primary); transform: scale(1.05); }
 .btn-icon:active { transform: scale(0.92); }
+.btn-icon-danger { color: var(--danger); }
+.btn-icon-danger:hover { background: rgba(239,68,68,0.1); color: var(--danger); }
+
+/* Parked (paused/dropped) cards */
+.parked-card .goal-card { opacity: 0.82; }
+.parked-card .btn-resume {
+  flex: 1;
+  background: linear-gradient(135deg, #0ea5e9, #0891b2);
+}
+
+/* Paused & Dropped section hint */
+.parked-hint {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  margin-left: auto;
+  text-align: right;
+}
 
 /* ── Bottom Navigation ───────────────────────────────────────── */
 .bottom-nav {
@@ -718,6 +745,8 @@
 .detail-actions-row button:active { transform: scale(0.95); }
 .detail-actions-row button.danger { color: var(--danger); border-color: rgba(239,68,68,0.25); }
 .detail-actions-row button.danger:hover { background: rgba(239,68,68,0.1); }
+.detail-actions-row button.resume { color: #0ea5e9; border-color: rgba(14,165,233,0.3); }
+.detail-actions-row button.resume:hover { background: rgba(14,165,233,0.1); }
 
 /* ── Daily Focus Banner (sticky, non-dismissable notification) ── */
 .daily-banner {
